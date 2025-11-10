@@ -9,21 +9,25 @@ export default function ForgotPassword(){
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isVisible, setIsVisible] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
 
   const onSubmit = async (data) => {
+    if (submitted) return; // Prevent multiple submissions
     setLoading(true);
     setError('');
     setSuccess('');
+    setSubmitted(true);
     try {
       const res = await API.post('/auth/forgot-password', data);
       setSuccess(res.data.message || 'Password reset instructions sent to your email');
     } catch (err) {
       console.error(err);
       setError(err?.response?.data?.message || 'Failed to send reset instructions. Please try again.');
+      setSubmitted(false); // Allow retry on error
     } finally {
       setLoading(false);
     }

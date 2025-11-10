@@ -1,11 +1,12 @@
 {
-  "homepage": "https://bharath14-star.github.io/car_portal",
+  "homepage": "https://bharath14-star.github.io/car_portal/",
   "name": "frontend",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "predeploy": "npm run build",
+    "postbuild": "copy dist\\index.html dist\\404.html",
     "deploy": "gh-pages -d dist",
     "start": "vite",
     "dev": "vite",
