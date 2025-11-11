@@ -58,7 +58,7 @@ exports.forgotPassword = async (req, res) => {
     const resetToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '1h' });
 
     // Create reset link
-    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173/car_portal'}/reset-password?token=${resetToken}`;
+    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5174/car_inventory'}/reset-password?token=${resetToken}`;
     
     console.log('Reset link:', resetLink);
     console.log('Sending email to:', email);

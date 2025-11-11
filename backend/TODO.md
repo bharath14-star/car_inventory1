@@ -1,0 +1,6 @@
+- [x] Navigate to backend/ directory
+- [x] Initialize Git repository (git init)
+- [x] Add remote origin (git remote add origin https://github.com/bharath14-star/backend.git)
+- [x] Add all files (git add .)
+- [x] Commit changes (git commit -m "Initial commit of backend code")
+- [x] Push to main branch (git push -u origin main)
