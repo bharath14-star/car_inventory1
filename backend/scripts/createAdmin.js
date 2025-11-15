@@ -4,7 +4,7 @@ const User = require('../models/User');
 
 async function createAdmin() {
   try {
-    await mongoose.connect('mongodb://localhost:27017/car_portal', {
+    await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/car_portal', {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });

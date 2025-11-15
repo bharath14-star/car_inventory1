@@ -82,3 +82,10 @@ PORT=5000
 2. Import endpoints and test authentication flow
 3. For forgot password: POST to `/api/auth/forgot-password` with `{"email": "user@example.com"}`
 4. For reset password: POST to `/api/auth/reset-password` with `{"token": "jwt-token", "newPassword": "newpass", "confirmPassword": "newpass"}`
+<!-- MONGO_URI=mongodb://localhost:27017/car_portal
+MONGO_URI="mongodb+srv://bharath:bharath@cluster0.mcnlrgp.mongodb.net/?appName=Cluster0"
+JWT_SECRET=your_jwt_secret_here
+EMAIL_USER=bharath200214@gmail.com
+EMAIL_PASS=zvqd jteg vnhq qqbh
+FRONTEND_URL=http://localhost:5174
+PORT=5000 -->
