@@ -82,8 +82,11 @@ export default function AdminDashboard(){
       <h2>Admin Dashboard</h2>
       {userRole === 'admin' && (
         <div className="mb-3">
-          <button className="btn btn-success" onClick={handleExport}>
+          <button className="btn btn-success me-2" onClick={handleExport}>
             <i className="bi bi-download me-2"></i>Export to Excel
+          </button>
+          <button className="btn btn-info" onClick={() => navigate('/user-records')}>
+            <i className="bi bi-people me-2"></i>View User Records
           </button>
         </div>
       )}

@@ -8,6 +8,8 @@ import AdminDashboard from './pages/AdminDashboard'
 import CarForm from './pages/CarForm'
 import RecordsList from './pages/RecordsList'
 import RecordDetails from './pages/RecordDetails'
+import UserRecordsList from './pages/UserRecordsList'
+import UserRecordDetails from './pages/UserRecordDetails'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
@@ -103,6 +105,21 @@ export default function App(){
               <Route path="/admin" element={
                 <ProtectedRoute adminOnly={true}>
                   <AdminDashboard/>
+                </ProtectedRoute>
+              } />
+              <Route path="/user-records" element={
+                <ProtectedRoute adminOnly={true}>
+                  <UserRecordsList/>
+                </ProtectedRoute>
+              } />
+              <Route path="/user-records/:id" element={
+                <ProtectedRoute adminOnly={true}>
+                  <UserRecordDetails/>
+                </ProtectedRoute>
+              } />
+              <Route path="/user-records/:id/edit" element={
+                <ProtectedRoute adminOnly={true}>
+                  <UserRecordDetails/>
                 </ProtectedRoute>
               } />
               <Route path="/entry" element={
