@@ -1,19 +1,17 @@
-# TODO: Implement Employee ID and Referral ID with Filtering
+# TODO: Fix Registration to Save Details Only After OTP Verification
 
-## Backend Changes
-- [x] Update User model to add employeeId field (required, max 16 chars)
-- [x] Update Car model to add referralId field (required, max 16 chars)
-- [x] Modify authController.register to accept and validate employeeId
-- [x] Modify carController.createCar to accept referralId
-- [x] Update carController.getAllCars to filter records where car.referralId matches user.employeeId for non-admin users
-- [x] Update carController.getStats to filter records for non-admin users
+## Steps to Complete
 
-## Frontend Changes
-- [x] Add employeeId field to Register.jsx form
-- [x] Add referralId field to CarForm.jsx form
-
-## Testing
-- [ ] Test user registration with employee ID
-- [ ] Test car entry with referral ID
-- [ ] Verify filtering works for users (only see matching records)
-- [ ] Confirm admin sees all records
+- [x] Create PendingUser model in backend/models/PendingUser.js (similar to User but without isVerified field)
+- [x] Update register function in backend/controllers/authController.js:
+  - Create PendingUser instead of User
+  - Send OTP email
+  - Return pendingUser._id as userId
+- [x] Update verifyOtp function in backend/controllers/authController.js:
+  - Find PendingUser by userId
+  - Verify OTP and expiration
+  - If valid, create User from PendingUser data, set isVerified: true
+  - Delete PendingUser
+  - Generate JWT token
+- [x] Ensure email uniqueness check in register: Check both User and PendingUser
+- [ ] Test the registration flow: Register -> Verify OTP -> User saved only after verification

@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const userSchema = new mongoose.Schema({
+const pendingUserSchema = new mongoose.Schema({
   firstName: { type: String, required: true },
   lastName: { type: String, required: true },
   name: { type: String, required: true }, // Keep for backward compatibility
@@ -10,8 +10,7 @@ const userSchema = new mongoose.Schema({
   employeeId: { type: String, required: true, maxlength: 16 },
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   otp: { type: String },
-  otpExpires: { type: Date },
-  isVerified: { type: Boolean, default: false }
+  otpExpires: { type: Date }
 }, { timestamps: true });
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model('PendingUser', pendingUserSchema);

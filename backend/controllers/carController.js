@@ -110,6 +110,14 @@ exports.getCar = async (req, res) => {
   try {
     const car = await Car.findById(req.params.id);
     if (!car) return res.status(404).json({ message: 'Not found' });
+    // allow admin or owner (createdBy) or user with matching employeeId (referralId)
+    if (req.user && req.user.role !== 'admin') {
+      const User = require('../models/User');
+      const user = await User.findById(req.user.id);
+      const isOwner = car.createdBy && String(car.createdBy) === String(user._id);
+      const matchesReferral = user && user.employeeId && car.referralId === user.employeeId;
+      if (!isOwner && !matchesReferral) return res.status(403).json({ message: 'Access denied' });
+    }
     res.json(car);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -123,12 +131,22 @@ exports.updateCar = async (req, res) => {
     // find existing to possibly remove old files
     const existing = await Car.findById(req.params.id);
     if (!existing) return res.status(404).json({ message: 'Not found' });
+    // permission: allow admin or owner (createdBy)
+    if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+    if (req.user.role !== 'admin') {
+      const User = require('../models/User');
+      const user = await User.findById(req.user.id);
+      const isOwner = existing.createdBy && String(existing.createdBy) === String(user._id);
+      if (!isOwner) return res.status(403).json({ message: 'Access denied' });
+    }
 
     if (req.files) {
       if (req.files.photos) {
-        // remove old photos
-        if (Array.isArray(existing.photos)) existing.photos.forEach(p => removeFileIfExists(p));
-        data.photos = req.files.photos.map(f => `/uploads/${f.filename}`);
+        // append new photos to existing array, limit to 5 total
+        const existingPhotos = Array.isArray(existing.photos) ? existing.photos : [];
+        const newPhotos = req.files.photos.map(f => `/uploads/${f.filename}`);
+        const combinedPhotos = [...existingPhotos, ...newPhotos];
+        data.photos = combinedPhotos.slice(0, 5); // limit to 5 photos
       }
       if (req.files.video && req.files.video[0]) {
         if (existing.video) removeFileIfExists(existing.video);
@@ -151,12 +169,69 @@ exports.deleteCar = async (req, res) => {
     const car = await Car.findById(req.params.id);
     if (!car) return res.status(404).json({ message: 'Not found' });
 
+    // permission: allow admin or owner (createdBy)
+    if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+    if (req.user.role !== 'admin') {
+      const User = require('../models/User');
+      const user = await User.findById(req.user.id);
+      const isOwner = car.createdBy && String(car.createdBy) === String(user._id);
+      if (!isOwner) return res.status(403).json({ message: 'Access denied' });
+    }
+
     // remove uploaded files
     if (Array.isArray(car.photos)) car.photos.forEach(p => removeFileIfExists(p));
     if (car.video) removeFileIfExists(car.video);
 
   await Car.findByIdAndDelete(req.params.id);
     res.json({ message: 'Deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.deletePhoto = async (req, res) => {
+  try {
+    // Check if user is admin
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const car = await Car.findById(req.params.id);
+    if (!car) return res.status(404).json({ message: 'Car not found' });
+
+    const index = parseInt(req.params.index);
+    if (isNaN(index) || index < 0 || index >= car.photos.length) {
+      return res.status(400).json({ message: 'Invalid photo index' });
+    }
+
+    const photoPath = car.photos[index];
+    removeFileIfExists(photoPath);
+    car.photos.splice(index, 1);
+    await car.save();
+
+    res.json({ message: 'Photo deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.deleteVideo = async (req, res) => {
+  try {
+    // Check if user is admin
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const car = await Car.findById(req.params.id);
+    if (!car) return res.status(404).json({ message: 'Car not found' });
+
+    if (!car.video) return res.status(404).json({ message: 'No video to delete' });
+
+    removeFileIfExists(car.video);
+    car.video = null;
+    await car.save();
+
+    res.json({ message: 'Video deleted' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const carController = require('../controllers/carController');
 const auth = require('../middleware/authMiddleware');
+const admin = require('../middleware/adminMiddleware');
 
 const fs = require('fs');
 const uploadDir = path.join(__dirname, '..', process.env.UPLOAD_DIR || 'uploads');
@@ -45,6 +46,8 @@ router.get('/car-records', auth, carController.getAllCars);
 router.get('/car/:id', auth, carController.getCar);
 router.put('/car/:id', auth, upload.fields([{ name: 'photos', maxCount: 6 }, { name: 'video', maxCount: 1 }]), carController.updateCar);
 router.delete('/car/:id', auth, carController.deleteCar);
-router.get('/admin/export-cars', auth, carController.exportCars);
+router.delete('/car/:id/photos/:index', auth, admin, carController.deletePhoto);
+router.delete('/car/:id/video', auth, admin, carController.deleteVideo);
+router.get('/admin/export-cars', auth, admin, carController.exportCars);
 
 module.exports = router;

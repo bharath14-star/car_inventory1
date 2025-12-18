@@ -10,6 +10,7 @@ export default function CarForm(){
   const [editingId, setEditingId] = useState(null);
   const [selectedPhotos, setSelectedPhotos] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState(null);
+  const [existingPhotos, setExistingPhotos] = useState([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ export default function CarForm(){
           const localISOTime = new Date(d - tzOffset).toISOString().slice(0,16);
           data.inOutDateTime = localISOTime;
         }
+        setExistingPhotos(data.photos || []);
         reset(data);
       }).catch(err => {
         console.error(err);
