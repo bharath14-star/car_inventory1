@@ -1,19 +1,20 @@
-# TODO: Implement Employee ID and Referral ID with Filtering
+# TODO: Fix Email OTP Verification on Render
 
-## Backend Changes
-- [x] Update User model to add employeeId field (required, max 16 chars)
-- [x] Update Car model to add referralId field (required, max 16 chars)
-- [x] Modify authController.register to accept and validate employeeId
-- [x] Modify carController.createCar to accept referralId
-- [x] Update carController.getAllCars to filter records where car.referralId matches user.employeeId for non-admin users
-- [x] Update carController.getStats to filter records for non-admin users
+## Current Status
+- Email OTP works on localhost but fails on Render deployment
+- Issue identified: Gmail SMTP configuration incompatible with Render (port 587 blocked/restricted)
 
-## Frontend Changes
-- [x] Add employeeId field to Register.jsx form
-- [x] Add referralId field to CarForm.jsx form
+## Tasks
+- [x] Update `today/backend/utils/email.js` to use port 465 with secure: true
+- [x] Add improved TLS settings for production environments
+- [x] Enhance error logging for better debugging on Render
+- [ ] Deploy updated code to Render
+- [ ] Set EMAIL_USER and EMAIL_PASS (Gmail App Password) in Render Environment Variables
+- [ ] Test OTP registration on deployed app
+- [ ] Verify OTP delivery, expiry, and resend functionality in production
+- [ ] Check Render logs for email-related errors
 
-## Testing
-- [ ] Test user registration with employee ID
-- [ ] Test car entry with referral ID
-- [ ] Verify filtering works for users (only see matching records)
-- [ ] Confirm admin sees all records
+## Notes
+- Ensure Gmail App Password is used for EMAIL_PASS, not regular password
+- Monitor transporter.verify logs on startup
+- Test with actual email sending to confirm functionality
