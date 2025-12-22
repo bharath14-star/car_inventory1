@@ -1,20 +1,17 @@
-# TODO: Fix Email OTP Verification on Render
+# TODO: Fix Registration to Save Details Only After OTP Verification
 
-## Current Status
-- Email OTP works on localhost but fails on Render deployment
-- Issue identified: Gmail SMTP configuration incompatible with Render (port 587 blocked/restricted)
+## Steps to Complete
 
-## Tasks
-- [x] Update `today/backend/utils/email.js` to use port 465 with secure: true
-- [x] Add improved TLS settings for production environments
-- [x] Enhance error logging for better debugging on Render
-- [ ] Deploy updated code to Render
-- [ ] Set EMAIL_USER and EMAIL_PASS (Gmail App Password) in Render Environment Variables
-- [ ] Test OTP registration on deployed app
-- [ ] Verify OTP delivery, expiry, and resend functionality in production
-- [ ] Check Render logs for email-related errors
-
-## Notes
-- Ensure Gmail App Password is used for EMAIL_PASS, not regular password
-- Monitor transporter.verify logs on startup
-- Test with actual email sending to confirm functionality
+- [x] Create PendingUser model in backend/models/PendingUser.js (similar to User but without isVerified field)
+- [x] Update register function in backend/controllers/authController.js:
+  - Create PendingUser instead of User
+  - Send OTP email
+  - Return pendingUser._id as userId
+- [x] Update verifyOtp function in backend/controllers/authController.js:
+  - Find PendingUser by userId
+  - Verify OTP and expiration
+  - If valid, create User from PendingUser data, set isVerified: true
+  - Delete PendingUser
+  - Generate JWT token
+- [x] Ensure email uniqueness check in register: Check both User and PendingUser
+- [ ] Test the registration flow: Register -> Verify OTP -> User saved only after verification
