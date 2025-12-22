@@ -27,6 +27,32 @@ export default function RecordDetails(){
     fetchRecord();
   }, [id]);
 
+  const handleDeletePhoto = async (index) => {
+    if (!confirm('Are you sure you want to delete this photo?')) return;
+    try {
+      await API.delete(`/car/${id}/photos/${index}`);
+      // reload record
+      const res = await API.get(`/car/${id}`);
+      setRecord(res.data);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete photo');
+    }
+  };
+
+  const handleDeleteVideo = async () => {
+    if (!confirm('Are you sure you want to delete this video?')) return;
+    try {
+      await API.delete(`/car/${id}/video`);
+      // reload record
+      const res = await API.get(`/car/${id}`);
+      setRecord(res.data);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete video');
+    }
+  };
+
   if (loading) {
     return (
       <div className="d-flex justify-content-center align-items-center vh-100">
@@ -115,14 +141,25 @@ export default function RecordDetails(){
                   <h6>Photos:</h6>
                   <div className="d-flex flex-wrap">
                     {record.photos.map((photo, index) => (
-                      <img
-                        key={index}
-                        src={`http://localhost:5000${photo}`}
-                        alt={`Photo ${index + 1}`}
-                        className="img-thumbnail me-2 mb-2"
-                        style={{ width: '150px', height: '150px', objectFit: 'cover', cursor: 'pointer' }}
-                        onClick={() => setSelectedMedia({ type: 'image', src: `http://localhost:5000${photo}`, alt: `Photo ${index + 1}` })}
-                      />
+                      <div key={index} className="position-relative d-inline-block me-2 mb-2">
+                        <img
+                          src={`http://localhost:5000${photo}`}
+                          alt={`Photo ${index + 1}`}
+                          className="img-thumbnail"
+                          style={{ width: '150px', height: '150px', objectFit: 'cover', cursor: 'pointer' }}
+                          onClick={() => setSelectedMedia({ type: 'image', src: `http://localhost:5000${photo}`, alt: `Photo ${index + 1}` })}
+                        />
+                        {isAdmin && (
+                          <button
+                            className="btn btn-danger btn-sm position-absolute"
+                            style={{ top: '5px', right: '5px' }}
+                            onClick={() => handleDeletePhoto(index)}
+                            title="Delete this photo"
+                          >
+                            <i className="bi bi-trash"></i>
+                          </button>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -130,15 +167,26 @@ export default function RecordDetails(){
               {record.video && (
                 <div className="mb-3">
                   <h6>Video:</h6>
+                  <div className="d-flex align-items-start">
                   <video
-                    controls
-                    className="w-100"
-                    style={{ maxWidth: '400px', cursor: 'pointer' }}
-                    onClick={() => setSelectedMedia({ type: 'video', src: `http://localhost:5000${record.video}` })}
-                  >
-                    <source src={`http://localhost:5000${record.video}`} type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
+                      controls
+                      className="me-2"
+                      style={{ width: '150px', height: '150px', objectFit: 'cover', cursor: 'pointer' }}
+                      onClick={() => setSelectedMedia({ type: 'video', src: `http://localhost:5000${record.video}` })}
+                    >
+                      <source src={`http://localhost:5000${record.video}`} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                    {isAdmin && (
+                      <button
+                        className="btn btn-danger"
+                        onClick={handleDeleteVideo}
+                        title="Delete this video"
+                      >
+                        <i className="bi bi-trash me-1"></i>Delete Video
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
               {(!record.photos || record.photos.length === 0) && !record.video && (

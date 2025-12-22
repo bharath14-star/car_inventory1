@@ -2,21 +2,112 @@ import React, { useEffect, useState } from 'react'
 import API from '../api'
 import { useNavigate } from 'react-router-dom'
 
-function Sparkline({ data = [] }){
-  if (!data || data.length === 0) return <div>No trend</div>;
-  const w = 240, h = 48, pad = 4;
-  const max = Math.max(...data.map(d=>d.count), 1);
-  const barW = (w - pad*2) / data.length - 4;
+import { Bar } from 'react-chartjs-2'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+
+// Shared date helpers so chart labels and the "Dates:" line match exactly
+function parseDateGlobal(s) {
+  if (!s) return null;
+  try {
+    if (s.includes('T') || s.includes(' ')) return new Date(s);
+    return new Date(s + 'T00:00:00');
+  } catch (e) { return null; }
+}
+
+function fmtDateGlobal(s) {
+  const d = parseDateGlobal(s);
+  if (!d || Number.isNaN(d.getTime())) return s;
+  const day = d.getDate().toString().padStart(2, '0');
+  const month = d.toLocaleString(undefined, { month: 'short' });
+  return `${day} ${month}`; // e.g. '13 Nov'
+}
+
+function BarChart({ data = [], color = '#0d6efd', title = '' }){
+  if (!data || data.length === 0) return <div style={{fontSize:12,color:'#666'}}>No data</div>;
+
+  // prepare labels (sorted) and dataset
+  const sorted = (data || []).slice().sort((a,b)=>{
+    const da = parseDateGlobal(a.date);
+    const db = parseDateGlobal(b.date);
+    return (da?.getTime() || 0) - (db?.getTime() || 0);
+  });
+
+  const labels = sorted.map(d => fmtDateGlobal(d.date));
+  const counts = sorted.map(d => d.count);
+
+  // custom plugin to draw count labels above bars (small)
+  const barLabelPlugin = {
+    id: 'barLabelPlugin',
+    afterDatasetsDraw(chart) {
+      const ctx = chart.ctx;
+      chart.data.datasets.forEach((dataset, datasetIndex) => {
+        const meta = chart.getDatasetMeta(datasetIndex);
+        meta.data.forEach((bar, index) => {
+          const value = dataset.data[index];
+          ctx.save();
+          ctx.fillStyle = '#333';
+          ctx.font = '10px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(value, bar.x, bar.y - 6);
+          ctx.restore();
+        });
+      });
+    }
+  };
+
+  const dataObj = {
+    labels,
+    datasets: [
+      {
+        label: title,
+        data: counts,
+        backgroundColor: color,
+        borderRadius: 4,
+        barThickness: 18
+      }
+    ]
+  };
+
+  const options = {
+    responsive: false,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { enabled: true }
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { color: '#666', font: { size: 10 } }
+      },
+      y: {
+        beginAtZero: true,
+        ticks: { stepSize: 1, color: '#999', font: { size: 10 } },
+        grid: { color: '#eee' }
+      }
+    }
+  };
 
   return (
-    <svg width={w} height={h}>
-      {data.map((d,i)=>{
-        const x = pad + i*(barW+4);
-        const barH = Math.round((d.count / max) * (h - pad*2));
-        const y = h - pad - barH;
-        return <rect key={d.date} x={x} y={y} width={barW} height={barH} fill="#0d6efd" />
-      })}
-    </svg>
+    <div>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+        <strong style={{fontSize:13}}>{title}</strong>
+        <div style={{fontSize:11,color:'#666'}}>Total: {counts.reduce((s,c)=>s+c,0)}</div>
+      </div>
+      <div style={{width:320,height:120}}>
+        <Bar data={dataObj} options={options} plugins={[barLabelPlugin]} width={320} height={120} />
+      </div>
+    </div>
   )
 }
 
@@ -28,7 +119,14 @@ export default function Dashboard(){
   const load = async () => {
     setLoading(true);
     try {
-      const res = await API.get('/dashboard');
+      // send client's timezone offset and local today so backend groups by client-local dates
+      const tzMinutes = -new Date().getTimezoneOffset(); // minutes ahead of UTC
+      const sign = tzMinutes >= 0 ? '+' : '-';
+      const abs = Math.abs(tzMinutes);
+      const tzOffset = `${sign}${String(Math.floor(abs/60)).padStart(2,'0')}:${String(abs%60).padStart(2,'0')}`;
+      const now = new Date();
+      const localToday = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+      const res = await API.get('/dashboard', { params: { tzOffset, today: localToday } });
       setStats(res.data);
     } catch (err) {
       console.error(err);
@@ -81,8 +179,25 @@ export default function Dashboard(){
         <div className="col-md-8">
           <div className="card p-3 mb-3">
             <h6>Last 7 days</h6>
-            <Sparkline data={stats.dailyCounts} />
-            <div className="mt-2 small text-muted">Dates: {stats.dailyCounts.map(d=>d.date).join(', ')}</div>
+            <div style={{display:'flex',gap:12,alignItems:'flex-start',flexWrap:'wrap'}}>
+              <div style={{flex:'0 0 auto',minWidth:220}}>
+                <BarChart data={stats.dailyCountsIn || []} color="#0d6efd" title="IN" />
+              </div>
+              <div style={{flex:'0 0 auto',minWidth:220}}>
+                <BarChart data={stats.dailyCountsOut || []} color="#ff7a00" title="OUT" />
+              </div>
+            </div>
+            <div className="mt-2 small text-muted">Dates: {(() => {
+              const src = stats.dailyCounts || stats.dailyCountsIn || stats.dailyCountsOut || [];
+              // build sorted unique date list (guard if both IN and OUT present)
+              const uniq = Array.from(new Set(src.map(d => d.date)));
+              const sortedDates = uniq.slice().sort((a,b)=>{
+                const da = parseDateGlobal(a);
+                const db = parseDateGlobal(b);
+                return (da?.getTime() || 0) - (db?.getTime() || 0);
+              });
+              return sortedDates.map(d => fmtDateGlobal(d)).join(', ');
+            })()}</div>
           </div>
         </div>
         <div className="col-md-4">

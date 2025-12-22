@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import API from '../api';
@@ -38,7 +38,7 @@ export default function ResetPassword() {
 
   if (!token) {
     return (
-      <div className="container mt-5">
+      <div className="container mt-5" style={{ backgroundImage: `url('c:\Users\DELL\Pictures\download (1).jpg')` }}>
         <div className="row justify-content-center">
           <div className="col-md-6">
             <div className="card shadow">
@@ -54,7 +54,7 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="container mt-5">
+    <div className="container mt-5" style={{ backgroundImage: `url('data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAkGBxATEhUSEhIVFhUVFRUVFhUXFxcYFhcVFhUXFxUVFRUZHSggGB0lHRUVITEhJSkrLi4uFx8zODMtNygtLisBCgoKDg0OFxAQGi8dHR8tLS0tLS0rLS0tKy0tKy0tLS0tLSstLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLf/AABEIAI8BYQMBIgACEQEDEQH/xAAcAAABBQEBAQAAAAAAAAAAAAADAAIEBQYBBwj/xABMEAACAAQDAwcHCQYCCQUAAAABAgADERIEITEFQVEGE2FxgZGhFCIyUrHB0RVCU3KSotLh8CMzQ2KCwpOyBxZEY3ODlOLxJDSEo8P/xAAZAQEBAQEBAQAAAAAAAAAAAAAAAQIDBAX/xAAhEQEBAQACAQUBAQEAAAAAAAAAARECEiEDBDFRYUFxIv/aAAwDAQACEQMRAD8A...')` }}>
       <div className="row justify-content-center">
         <div className="col-md-6">
           <div className="card shadow">

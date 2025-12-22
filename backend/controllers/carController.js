@@ -126,9 +126,11 @@ exports.updateCar = async (req, res) => {
 
     if (req.files) {
       if (req.files.photos) {
-        // remove old photos
-        if (Array.isArray(existing.photos)) existing.photos.forEach(p => removeFileIfExists(p));
-        data.photos = req.files.photos.map(f => `/uploads/${f.filename}`);
+        // append new photos to existing array, limit to 5 total
+        const existingPhotos = Array.isArray(existing.photos) ? existing.photos : [];
+        const newPhotos = req.files.photos.map(f => `/uploads/${f.filename}`);
+        const combinedPhotos = [...existingPhotos, ...newPhotos];
+        data.photos = combinedPhotos.slice(0, 5); // limit to 5 photos
       }
       if (req.files.video && req.files.video[0]) {
         if (existing.video) removeFileIfExists(existing.video);
@@ -162,6 +164,54 @@ exports.deleteCar = async (req, res) => {
   }
 };
 
+exports.deletePhoto = async (req, res) => {
+  try {
+    // Check if user is admin
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const car = await Car.findById(req.params.id);
+    if (!car) return res.status(404).json({ message: 'Car not found' });
+
+    const index = parseInt(req.params.index);
+    if (isNaN(index) || index < 0 || index >= car.photos.length) {
+      return res.status(400).json({ message: 'Invalid photo index' });
+    }
+
+    const photoPath = car.photos[index];
+    removeFileIfExists(photoPath);
+    car.photos.splice(index, 1);
+    await car.save();
+
+    res.json({ message: 'Photo deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.deleteVideo = async (req, res) => {
+  try {
+    // Check if user is admin
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const car = await Car.findById(req.params.id);
+    if (!car) return res.status(404).json({ message: 'Car not found' });
+
+    if (!car.video) return res.status(404).json({ message: 'No video to delete' });
+
+    removeFileIfExists(car.video);
+    car.video = null;
+    await car.save();
+
+    res.json({ message: 'Video deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // dashboard stats
 exports.getStats = async (req, res) => {
   try {
@@ -186,8 +236,48 @@ exports.getStats = async (req, res) => {
     }
 
     const total = await Car.countDocuments(filter);
-    const today = await Car.countDocuments({ ...filter, inOutDateTime: { $gte: startOfToday } });
-    const thisWeek = await Car.countDocuments({ ...filter, inOutDateTime: { $gte: startOfWeek } });
+
+    // allow client to specify tzOffset and today so "today" and "thisWeek" reflect client-local dates
+    const tzOffset = req.query.tzOffset || '+00:00'; // e.g. '+05:30'
+    const clientToday = req.query.today || startOfToday.toISOString().slice(0,10); // e.g. '2025-11-20'
+
+    let today = 0;
+    let thisWeek = 0;
+    if (tzOffset && clientToday) {
+      try {
+        // compute today's count using aggregation by localDate
+        const todayAgg = await Car.aggregate([
+          { $match: filter },
+          { $addFields: { localDate: { $dateToString: { format: "%Y-%m-%d", date: "$inOutDateTime", timezone: tzOffset } } } },
+          { $match: { localDate: clientToday } },
+          { $count: "cnt" }
+        ]);
+        today = (todayAgg[0] && todayAgg[0].cnt) || 0;
+
+        // compute start of week in client local date
+          // compute weekStart (client-local) using UTC arithmetic
+          const [by, bm, bd] = clientToday.split('-').map(Number);
+          const baseDate = new Date(Date.UTC(by, bm - 1, bd));
+          const dayIdx = baseDate.getUTCDay();
+          const wkStartDate = new Date(Date.UTC(by, bm - 1, bd - dayIdx));
+          const weekStartStr = `${wkStartDate.getUTCFullYear()}-${String(wkStartDate.getUTCMonth()+1).padStart(2,'0')}-${String(wkStartDate.getUTCDate()).padStart(2,'0')}`;
+
+        const weekAgg = await Car.aggregate([
+          { $match: filter },
+          { $addFields: { localDate: { $dateToString: { format: "%Y-%m-%d", date: "$inOutDateTime", timezone: tzOffset } } } },
+          { $match: { localDate: { $gte: weekStartStr, $lte: clientToday } } },
+          { $count: "cnt" }
+        ]);
+        thisWeek = (weekAgg[0] && weekAgg[0].cnt) || 0;
+      } catch (e) {
+        // fallback to server-local calculations
+        today = await Car.countDocuments({ ...filter, inOutDateTime: { $gte: startOfToday } });
+        thisWeek = await Car.countDocuments({ ...filter, inOutDateTime: { $gte: startOfWeek } });
+      }
+    } else {
+      today = await Car.countDocuments({ ...filter, inOutDateTime: { $gte: startOfToday } });
+      thisWeek = await Car.countDocuments({ ...filter, inOutDateTime: { $gte: startOfWeek } });
+    }
 
     const recent = await Car.find(filter).sort({ inOutDateTime: -1 }).limit(10).lean();
 
@@ -206,24 +296,60 @@ exports.getStats = async (req, res) => {
       { $limit: 5 }
     ]);
 
-    // last 7 days counts
-    const start7 = new Date(startOfToday);
-    start7.setDate(startOfToday.getDate() - 6);
-    const days = [];
-    const promises = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(start7);
-      d.setDate(start7.getDate() + i);
-      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
-      promises.push(Car.countDocuments({ ...filter, inOutDateTime: { $gte: dayStart, $lt: dayEnd } }));
-      days.push(dayStart.toISOString().slice(0,10));
+    // last 7 days counts (separate IN and OUT), grouped by client-local date if provided
+    // frontend may pass `tzOffset` like '+05:30' and `today` as 'YYYY-MM-DD'
+
+    // build last 7 client-local date strings (YYYY-MM-DD) ending with clientToday
+      // build last 7 client-local date strings (YYYY-MM-DD) ending with clientToday
+      // Use UTC arithmetic to avoid server-local timezone shifts
+      const days = [];
+      const [cy, cm, cd] = clientToday.split('-').map(Number);
+      for (let i = 0; i < 7; i++) {
+        const delta = i - 6; // for i=0 => -6 (six days before), ... i=6 => 0 (clientToday)
+        const dt = new Date(Date.UTC(cy, cm - 1, cd + delta));
+        const y = dt.getUTCFullYear();
+        const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+        const dstr = String(dt.getUTCDate()).padStart(2, '0');
+        days.push(`${y}-${m}-${dstr}`);
     }
-    const counts = await Promise.all(promises);
 
-    const dailyCounts = days.map((date, idx) => ({ date, count: counts[idx] }));
+    // aggregation helper: group by localDate string produced by $dateToString using tzOffset
+    const aggCounts = async (status) => {
+      const match = { ...filter };
+      if (status) match.inOutStatus = status;
+      const pipeline = [
+        { $match: match },
+        { $addFields: { localDate: { $dateToString: { format: "%Y-%m-%d", date: "$inOutDateTime", timezone: tzOffset } } } },
+        { $match: { localDate: { $in: days } } },
+        { $group: { _id: "$localDate", count: { $sum: 1 } } }
+      ];
+      const resAgg = await Car.aggregate(pipeline);
+      const map = {};
+      resAgg.forEach(r => { map[r._id] = r.count; });
+      return days.map(d => map[d] || 0);
+    };
 
-    res.json({ total, today, thisWeek, recent, topReg, topPersons, dailyCounts });
+    const [inCounts, outCounts] = await Promise.all([aggCounts('IN'), aggCounts('OUT')]);
+
+    const dailyCountsIn = days.map((date, idx) => ({ date, count: inCounts[idx] }));
+    const dailyCountsOut = days.map((date, idx) => ({ date, count: outCounts[idx] }));
+
+    // Keep `dailyCounts` (combined) for backward compatibility
+    const dailyCounts = days.map((date, idx) => ({ date, count: inCounts[idx] + outCounts[idx] }));
+
+    const response = { total, today, thisWeek, recent, topReg, topPersons, dailyCounts, dailyCountsIn, dailyCountsOut };
+
+    // if debug requested, include internal debug info to help diagnose timezone/day grouping
+    if (req.query.debug) {
+      // also include raw aggregation maps
+      const inMap = {};
+      const outMap = {};
+      inCounts.forEach((c, i) => { inMap[days[i]] = c; });
+      outCounts.forEach((c, i) => { outMap[days[i]] = c; });
+      response.debug = { tzOffset, clientToday, days, inMap, outMap };
+    }
+
+    res.json(response);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

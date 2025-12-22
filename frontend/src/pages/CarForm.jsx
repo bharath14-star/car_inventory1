@@ -10,6 +10,7 @@ export default function CarForm(){
   const [editingId, setEditingId] = useState(null);
   const [selectedPhotos, setSelectedPhotos] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState(null);
+  const [existingPhotos, setExistingPhotos] = useState([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ export default function CarForm(){
           const localISOTime = new Date(d - tzOffset).toISOString().slice(0,16);
           data.inOutDateTime = localISOTime;
         }
+        setExistingPhotos(data.photos || []);
         reset(data);
       }).catch(err => {
         console.error(err);
@@ -44,10 +46,33 @@ export default function CarForm(){
     try {
       setUploadProgress(0);
       const form = new FormData();
+      // append non-file fields; convert inOutDateTime (datetime-local) to full ISO
       Object.keys(data).forEach(key => {
-        if (key === 'photos' || key === 'video') return;
+        if (key === 'photos' || key === 'video' || key === 'inOutDateTime') return;
         if (data[key] !== undefined && data[key] !== null) form.append(key, data[key]);
       });
+      if (data.inOutDateTime) {
+        // `data.inOutDateTime` comes from <input type="datetime-local"> (no timezone)
+        // Build a Date using numeric components so the value is interpreted
+        // as local time reliably across browsers, then send the UTC ISO string.
+        try {
+          const s = data.inOutDateTime; // expected like 'YYYY-MM-DDTHH:mm'
+          const [datePart, timePart] = (s || '').split('T');
+          if (datePart && timePart) {
+            const [y, m, d] = datePart.split('-').map(Number);
+            const [hh, mm] = timePart.split(':').map(Number);
+            const localDate = new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0);
+            form.append('inOutDateTime', localDate.toISOString());
+          } else {
+            // fallback
+            const d = new Date(s);
+            form.append('inOutDateTime', Number.isNaN(d.getTime()) ? s : d.toISOString());
+          }
+        } catch (e) {
+          // fallback to raw value
+          form.append('inOutDateTime', data.inOutDateTime);
+        }
+      }
       // append files
       selectedPhotos.forEach(photo => form.append('photos', photo));
       if (selectedVideo) form.append('video', selectedVideo);

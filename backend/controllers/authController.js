@@ -1,6 +1,8 @@
 const User = require('../models/User');
+const PendingUser = require('../models/PendingUser');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { sendEmail } = require('../utils/email');
 
 exports.register = async (req, res) => {
@@ -9,13 +11,41 @@ exports.register = async (req, res) => {
     if (!firstName || !lastName || !email || !phone || !password || !confirmPassword || !employeeId) return res.status(400).json({ message: 'All fields are required' });
     if (password !== confirmPassword) return res.status(400).json({ message: 'Passwords do not match' });
     if (employeeId.length > 16) return res.status(400).json({ message: 'Employee ID must be 16 characters or less' });
-    const exists = await User.findOne({ email });
-    if (exists) return res.status(400).json({ message: 'Email already registered' });
+
+    // Check if email already exists in User or PendingUser
+    const userExists = await User.findOne({ email });
+    const pendingExists = await PendingUser.findOne({ email });
+    if (userExists || pendingExists) return res.status(400).json({ message: 'Email already registered' });
+
     const hash = await bcrypt.hash(password, 10);
     const name = `${firstName} ${lastName}`;
-    const user = await User.create({ firstName, lastName, name, email, phone, password: hash, employeeId });
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
-    res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role }, token });
+
+    // Generate OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    const pendingUser = await PendingUser.create({ firstName, lastName, name, email, phone, password: hash, employeeId, otp, otpExpires });
+
+    // Send OTP email
+    await sendEmail(
+      email,
+      'OTP Verification - Car Portal',
+      `Your OTP for account verification is: ${otp}. This OTP will expire in 10 minutes.`,
+      `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #667eea;">OTP Verification</h2>
+          <p>You have successfully registered for the Car Portal.</p>
+          <p>Your OTP for account verification is:</p>
+          <div style="font-size: 24px; font-weight: bold; color: #667eea; text-align: center; margin: 20px 0;">${otp}</div>
+          <p>This OTP will expire in 10 minutes.</p>
+          <p>If you didn't request this, please ignore this email.</p>
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+          <p style="color: #999; font-size: 12px;">Car Portal Support Team</p>
+        </div>
+      `
+    );
+
+    res.json({ message: 'Registration successful. Please check your email for OTP verification.', userId: pendingUser._id });
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ message: err.message });
@@ -58,9 +88,9 @@ exports.forgotPassword = async (req, res) => {
     // Generate reset token (valid for 1 hour)
     const resetToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '1h' });
 
-    // Create reset link
-    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5174/car_inventory'}/reset-password?token=${resetToken}`;
-    
+    // Create reset link with explicit localhost:5173 if FRONTEND_URL not set
+    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
+
     console.log('Reset link:', resetLink);
     console.log('Sending email to:', email);
 
@@ -117,6 +147,44 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'Reset link has expired. Please request a new one.' });
     }
     res.status(500).json({ message: 'Password reset failed. Please try again.' });
+  }
+};
+
+exports.verifyOtp = async (req, res) => {
+  try {
+    const { userId, otp } = req.body;
+    if (!userId || !otp) return res.status(400).json({ message: 'User ID and OTP are required' });
+
+    const pendingUser = await PendingUser.findById(userId);
+    if (!pendingUser) return res.status(404).json({ message: 'Pending user not found' });
+
+    if (!pendingUser.otp || pendingUser.otp !== otp) return res.status(400).json({ message: 'Invalid OTP' });
+
+    if (pendingUser.otpExpires < new Date()) return res.status(400).json({ message: 'OTP has expired' });
+
+    // Create verified user from pending user data
+    const user = await User.create({
+      firstName: pendingUser.firstName,
+      lastName: pendingUser.lastName,
+      name: pendingUser.name,
+      email: pendingUser.email,
+      phone: pendingUser.phone,
+      password: pendingUser.password,
+      employeeId: pendingUser.employeeId,
+      role: pendingUser.role,
+      isVerified: true
+    });
+
+    // Delete pending user
+    await PendingUser.deleteOne({ _id: userId });
+
+    // Generate JWT token
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+
+    res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role }, token });
+  } catch (err) {
+    console.error('OTP verification error:', err);
+    res.status(500).json({ message: err.message });
   }
 };
 

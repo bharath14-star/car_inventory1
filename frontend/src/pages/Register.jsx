@@ -17,10 +17,9 @@ export default function Register() {
     }
     try {
       const res = await API.post('/auth/register', data);
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      window.dispatchEvent(new Event('login'));
-      navigate('/');
+      // Store userId for OTP verification
+      localStorage.setItem('pendingUserId', res.data.userId);
+      navigate('/verify-otp');
     } catch (err) {
       console.error(err);
       alert(err?.response?.data?.message || 'Register failed');
