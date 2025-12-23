@@ -178,6 +178,14 @@ exports.getCar = async (req, res) => {
   try {
     const car = await Car.findById(req.params.id);
     if (!car) return res.status(404).json({ message: 'Not found' });
+    // allow admin or owner (createdBy) or user with matching employeeId (referralId)
+    if (req.user && req.user.role !== 'admin') {
+      const User = require('../models/User');
+      const user = await User.findById(req.user.id);
+      const isOwner = car.createdBy && String(car.createdBy) === String(user._id);
+      const matchesReferral = user && user.employeeId && car.referralId === user.employeeId;
+      if (!isOwner && !matchesReferral) return res.status(403).json({ message: 'Access denied' });
+    }
     res.json(car);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -191,23 +199,22 @@ exports.updateCar = async (req, res) => {
     // find existing to possibly remove old files
     const existing = await Car.findById(req.params.id);
     if (!existing) return res.status(404).json({ message: 'Not found' });
+    // permission: allow admin or owner (createdBy)
+    if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+    if (req.user.role !== 'admin') {
+      const User = require('../models/User');
+      const user = await User.findById(req.user.id);
+      const isOwner = existing.createdBy && String(existing.createdBy) === String(user._id);
+      if (!isOwner) return res.status(403).json({ message: 'Access denied' });
+    }
 
     if (req.files) {
       if (req.files.photos) {
+        // append new photos to existing array, limit to 5 total
         const existingPhotos = Array.isArray(existing.photos) ? existing.photos : [];
-        const newPhotos = [];
-        for (const f of req.files.photos) {
-          const localPath = path.join(uploadDir, f.filename);
-          if (isCloudinaryConfigured()) {
-            const res = await uploadLocalFileToCloudinary(localPath, 'image');
-            if (res && res.secure_url) newPhotos.push(res.secure_url);
-            else newPhotos.push(`/uploads/${f.filename}`);
-          } else {
-            newPhotos.push(`/uploads/${f.filename}`);
-          }
-        }
+        const newPhotos = req.files.photos.map(f => `/uploads/${f.filename}`);
         const combinedPhotos = [...existingPhotos, ...newPhotos];
-        data.photos = combinedPhotos.slice(0, 5);
+        data.photos = combinedPhotos.slice(0, 5); // limit to 5 photos
       }
       if (req.files.video && req.files.video[0]) {
         const vf = req.files.video[0];
@@ -237,6 +244,15 @@ exports.deleteCar = async (req, res) => {
   try {
     const car = await Car.findById(req.params.id);
     if (!car) return res.status(404).json({ message: 'Not found' });
+
+    // permission: allow admin or owner (createdBy)
+    if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+    if (req.user.role !== 'admin') {
+      const User = require('../models/User');
+      const user = await User.findById(req.user.id);
+      const isOwner = car.createdBy && String(car.createdBy) === String(user._id);
+      if (!isOwner) return res.status(403).json({ message: 'Access denied' });
+    }
 
     // remove uploaded files
     if (Array.isArray(car.photos)) car.photos.forEach(p => removeFileIfExists(p));

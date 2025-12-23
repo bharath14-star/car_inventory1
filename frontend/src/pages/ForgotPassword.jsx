@@ -8,6 +8,7 @@ export default function ForgotPassword() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [resetToken, setResetToken] = useState(null)
 
   const onSubmit = async (data) => {
     if (submitted) return
@@ -18,6 +19,12 @@ export default function ForgotPassword() {
     try {
       const res = await API.post('/auth/forgot-password', data)
       setSuccess(res.data.message || 'Password reset instructions sent to your email')
+      // Store the reset token if provided by the backend
+      if (res.data.token) {
+        setResetToken(res.data.token)
+        sessionStorage.setItem('resetToken', res.data.token)
+        sessionStorage.setItem('resetEmail', data.email)
+      }
     } catch (err) {
       console.error(err)
       setError(err?.response?.data?.message || 'Failed to send reset instructions. Please try again.')
@@ -78,7 +85,7 @@ export default function ForgotPassword() {
             placeholder="Enter your email address"
             {...register('email')}
             required
-            disabled={loading}
+            disabled={loading || submitted}
             style={{
               padding: '0.75rem 1rem',
               fontSize: '1rem',
@@ -93,9 +100,39 @@ export default function ForgotPassword() {
             onFocus={(e) => (e.target.style.borderColor = '#667eea')}
             onBlur={(e) => (e.target.style.borderColor = '#ccc')}
           />
+          {error && (
+            <div
+              style={{
+                padding: '0.75rem 1rem',
+                marginBottom: '1rem',
+                backgroundColor: '#f8d7da',
+                color: '#721c24',
+                borderRadius: '4px',
+                fontSize: '0.9rem',
+                border: '1px solid #f5c6cb',
+              }}
+            >
+              {error}
+            </div>
+          )}
+          {success && (
+            <div
+              style={{
+                padding: '0.75rem 1rem',
+                marginBottom: '1rem',
+                backgroundColor: '#d4edda',
+                color: '#155724',
+                borderRadius: '4px',
+                fontSize: '0.9rem',
+                border: '1px solid #c3e6cb',
+              }}
+            >
+              {success}
+            </div>
+          )}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || submitted}
             style={{
               backgroundColor: '#667eea',
               color: 'white',
@@ -104,19 +141,20 @@ export default function ForgotPassword() {
               fontWeight: '700',
               borderRadius: '8px',
               border: 'none',
-              cursor: loading ? 'not-allowed' : 'pointer',
+              cursor: loading || submitted ? 'not-allowed' : 'pointer',
               boxShadow: '0 4px 8px rgba(102, 126, 234, 0.5)',
               transition: 'background-color 0.3s ease',
               width: '100%',
+              opacity: loading || submitted ? 0.6 : 1,
             }}
             onMouseEnter={(e) => {
-              if (!loading) e.currentTarget.style.backgroundColor = '#556cd6'
+              if (!loading && !submitted) e.currentTarget.style.backgroundColor = '#556cd6'
             }}
             onMouseLeave={(e) => {
-              if (!loading) e.currentTarget.style.backgroundColor = '#667eea'
+              if (!loading && !submitted) e.currentTarget.style.backgroundColor = '#667eea'
             }}
           >
-            {loading ? 'Sending...' : 'Send Reset Instructions'}
+            {loading ? 'Sending...' : submitted ? 'Check your email' : 'Send Reset Instructions'}
           </button>
         </form>
       </div>

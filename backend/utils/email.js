@@ -1,17 +1,22 @@
 const nodemailer = require('nodemailer');
 
-// Create transporter for Gmail SMTP
+// Create transporter for Gmail SMTP (Render-compatible configuration)
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // true for 465, false for other ports
+  port: 465,
+  secure: true, // Use SSL/TLS
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   },
   tls: {
-    rejectUnauthorized: false // Allow self-signed certificates
-  }
+    rejectUnauthorized: false, // Allow self-signed certificates
+    minVersion: 'TLSv1.2' // Ensure TLS 1.2 or higher
+  },
+  // Additional settings for better compatibility
+  pool: true, // Use pooled connections
+  maxConnections: 5,
+  maxMessages: 100
 });
 
 // Verify transporter configuration on startup
