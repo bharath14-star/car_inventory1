@@ -88,8 +88,9 @@ exports.forgotPassword = async (req, res) => {
     // Generate reset token (valid for 1 hour)
     const resetToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '1h' });
 
-    // Create reset link with explicit localhost:5173 if FRONTEND_URL not set
-    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
+    // Build frontend reset link. Prefer the request origin, then FRONTEND_URL, then localhost fallback.
+    const origin = req.get('origin') || process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetLink = `${origin.replace(/\/$/, '')}/reset-password?token=${resetToken}`;
 
     console.log('Reset link:', resetLink);
     console.log('Sending email to:', email);

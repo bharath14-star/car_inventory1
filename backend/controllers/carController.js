@@ -2,17 +2,63 @@ const Car = require('../models/Car');
 const fs = require('fs');
 const path = require('path');
 const ExcelJS = require('exceljs');
+const cloudinary = require('../utils/cloudinary');
 
 const uploadDir = path.join(__dirname, '..', process.env.UPLOAD_DIR || 'uploads');
 
-function removeFileIfExists(relPath) {
-  if (!relPath) return;
-  // relPath expected like '/uploads/filename.ext'
-  const p = path.join(__dirname, '..', relPath.replace(/^\//, ''));
+function isCloudinaryConfigured() {
+  return !!(process.env.CLOUDINARY_URL || process.env.CLOUDINARY_CLOUD_NAME);
+}
+
+async function uploadLocalFileToCloudinary(localPath, resourceType = 'image') {
   try {
-    if (fs.existsSync(p)) fs.unlinkSync(p);
+    const opt = { resource_type: resourceType };
+    // optionally set folder
+    if (process.env.CLOUDINARY_FOLDER) opt.folder = process.env.CLOUDINARY_FOLDER;
+    const result = await cloudinary.uploader.upload(localPath, opt);
+    // remove local file
+    try { fs.unlinkSync(localPath); } catch (e) { /* ignore */ }
+    return result;
   } catch (e) {
-    console.warn('Failed to remove file', p, e.message);
+    console.warn('Cloudinary upload failed for', localPath, e.message);
+    return null;
+  }
+}
+
+async function removeFileIfExists(relPath) {
+  if (!relPath) return;
+  // relPath expected like '/uploads/filename.ext' or a full cloudinary URL
+  // handle local files
+  if (relPath.startsWith('/')) {
+    const p = path.join(__dirname, '..', relPath.replace(/^\//, ''));
+    try {
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    } catch (e) {
+      console.warn('Failed to remove file', p, e.message);
+    }
+    return;
+  }
+
+  // handle cloudinary URLs
+  if (relPath.includes('res.cloudinary.com')) {
+    try {
+      // extract public_id from URL: after '/upload/' remove optional version and extension
+      const m = relPath.match(/\/upload\/(?:v\d+\/)?(.+)$/);
+      if (m && m[1]) {
+        let publicId = m[1];
+        // strip extension
+        publicId = publicId.replace(/\.[a-zA-Z0-9]+(\?.*)?$/, '');
+        publicId = decodeURIComponent(publicId);
+        // try destroy as image then video
+        try {
+          await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+        } catch (e) {
+          try { await cloudinary.uploader.destroy(publicId, { resource_type: 'video' }); } catch (er) { /* ignore */ }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to remove cloudinary file', relPath, e.message);
+    }
   }
 }
 
@@ -23,8 +69,30 @@ exports.createCar = async (req, res) => {
     if (req.user && req.user._id) data.createdBy = req.user._id;
     // files handled by multer; photos and video
     if (req.files) {
-      if (req.files.photos) data.photos = req.files.photos.map(f => `/uploads/${f.filename}`);
-      if (req.files.video && req.files.video[0]) data.video = `/uploads/${req.files.video[0].filename}`;
+      data.photos = data.photos || [];
+      if (req.files.photos) {
+        for (const f of req.files.photos) {
+          const localPath = path.join(uploadDir, f.filename);
+          if (isCloudinaryConfigured()) {
+            const res = await uploadLocalFileToCloudinary(localPath, 'image');
+            if (res && res.secure_url) data.photos.push(res.secure_url);
+            else data.photos.push(`/uploads/${f.filename}`);
+          } else {
+            data.photos.push(`/uploads/${f.filename}`);
+          }
+        }
+      }
+      if (req.files.video && req.files.video[0]) {
+        const vf = req.files.video[0];
+        const localPath = path.join(uploadDir, vf.filename);
+        if (isCloudinaryConfigured()) {
+          const r = await uploadLocalFileToCloudinary(localPath, 'video');
+          if (r && r.secure_url) data.video = r.secure_url;
+          else data.video = `/uploads/${vf.filename}`;
+        } else {
+          data.video = `/uploads/${vf.filename}`;
+        }
+      }
     }
     // basic validation
     if (!data.regNo) return res.status(400).json({ message: 'regNo is required' });
@@ -126,15 +194,32 @@ exports.updateCar = async (req, res) => {
 
     if (req.files) {
       if (req.files.photos) {
-        // append new photos to existing array, limit to 5 total
         const existingPhotos = Array.isArray(existing.photos) ? existing.photos : [];
-        const newPhotos = req.files.photos.map(f => `/uploads/${f.filename}`);
+        const newPhotos = [];
+        for (const f of req.files.photos) {
+          const localPath = path.join(uploadDir, f.filename);
+          if (isCloudinaryConfigured()) {
+            const res = await uploadLocalFileToCloudinary(localPath, 'image');
+            if (res && res.secure_url) newPhotos.push(res.secure_url);
+            else newPhotos.push(`/uploads/${f.filename}`);
+          } else {
+            newPhotos.push(`/uploads/${f.filename}`);
+          }
+        }
         const combinedPhotos = [...existingPhotos, ...newPhotos];
-        data.photos = combinedPhotos.slice(0, 5); // limit to 5 photos
+        data.photos = combinedPhotos.slice(0, 5);
       }
       if (req.files.video && req.files.video[0]) {
-        if (existing.video) removeFileIfExists(existing.video);
-        data.video = `/uploads/${req.files.video[0].filename}`;
+        const vf = req.files.video[0];
+        const localPath = path.join(uploadDir, vf.filename);
+        if (existing.video) await removeFileIfExists(existing.video);
+        if (isCloudinaryConfigured()) {
+          const r = await uploadLocalFileToCloudinary(localPath, 'video');
+          if (r && r.secure_url) data.video = r.secure_url;
+          else data.video = `/uploads/${vf.filename}`;
+        } else {
+          data.video = `/uploads/${vf.filename}`;
+        }
       }
     }
 
