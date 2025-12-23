@@ -1,11 +1,8 @@
 import axios from 'axios';
 
 const API = axios.create({
-  // Default order of precedence for API base URL:
-  // 1. Vite env `VITE_API_URL` (set in your deployment platform)
-  // 2. Deployed backend on Render (fallback for demo)
-  // 3. Local development server
-  baseURL: import.meta.env.VITE_API_URL || 'https://car-inventory1-uu7v.onrender.com/api' || 'http://localhost:5000/api',
+   baseURL: import.meta.env.VITE_API_URL || 'https://car-inventory1.onrender.com/api',
+  
 });
 
 // Add request interceptor
