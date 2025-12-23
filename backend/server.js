@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
+const url = require('url');
 
 const { MONGO_URI } = require('./controllers/config/Database');
 
@@ -15,7 +16,12 @@ const PORT = process.env.PORT || 5000;
 // Configure CORS to allow the frontend origin set in env, otherwise allow all origins for now.
 // In production set FRONTEND_URL to your deployed frontend (e.g. https://your-frontend.example)
 const frontendOrigin = process.env.FRONTEND_URL || '*';
-app.use(cors({ origin: frontendOrigin }));
+let corsOrigin = frontendOrigin;
+if (frontendOrigin !== '*') {
+  const parsed = url.parse(frontendOrigin);
+  corsOrigin = `${parsed.protocol}//${parsed.host}`;
+}
+app.use(cors({ origin: corsOrigin }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
