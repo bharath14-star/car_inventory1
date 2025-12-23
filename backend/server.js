@@ -12,7 +12,10 @@ const carRoutes = require('./routes/carRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors("https://bharath14-star.github.io/car_inventory1/"));
+// Configure CORS to allow the frontend origin set in env, otherwise allow all origins for now.
+// In production set FRONTEND_URL to your deployed frontend (e.g. https://your-frontend.example)
+const frontendOrigin = process.env.FRONTEND_URL || '*';
+app.use(cors({ origin: frontendOrigin }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
