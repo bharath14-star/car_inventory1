@@ -12,10 +12,25 @@ exports.register = async (req, res) => {
     if (password !== confirmPassword) return res.status(400).json({ message: 'Passwords do not match' });
     if (employeeId.length > 16) return res.status(400).json({ message: 'Employee ID must be 16 characters or less' });
 
-    // Check if email already exists in User or PendingUser
+    // Check if email already exists in verified User collection
     const userExists = await User.findOne({ email });
+    if (userExists) return res.status(400).json({ message: 'Email already registered' });
+
+    // Check if pending user exists
     const pendingExists = await PendingUser.findOne({ email });
-    if (userExists || pendingExists) return res.status(400).json({ message: 'Email already registered' });
+    
+    // If pending user exists, check if OTP has expired
+    if (pendingExists) {
+      const now = new Date();
+      // If OTP has expired, allow re-registration by deleting the old pending user
+      if (pendingExists.otpExpires < now) {
+        console.log('Expired pending user found, deleting and allowing re-registration for email:', email);
+        await PendingUser.deleteOne({ email });
+      } else {
+        // OTP is still valid, don't allow registration
+        return res.status(400).json({ message: 'Email already registered. Please verify your OTP or wait for it to expire.' });
+      }
+    }
 
     const hash = await bcrypt.hash(password, 10);
     const name = `${firstName} ${lastName}`;
@@ -52,23 +67,65 @@ exports.register = async (req, res) => {
   }
 };
 
+// exports.login = async (req, res) => {
+//   try {
+//     const { email, password, loginType } = req.body;
+//     const user = await User.findOne({ email });
+//     if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+//     const match = await bcrypt.compare(password, user.password);
+//     if (!match) return res.status(400).json({ message: 'Invalid credentials' });
+//     // Use ternary operator to check role match
+//     user.role !== loginType ? res.status(403).json({ message: `You are not authorized to login as ${loginType}` }) : (() => {
+//       const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+//       res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role }, token });
+//     })();
+//   } catch (err) {
+//     console.error('Login error:', err);
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
 exports.login = async (req, res) => {
   try {
-    const { email, password, loginType } = req.body;
+    const { email, password } = req.body;
+
+    // 1️⃣ Check email
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: 'Invalid credentials' });
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(400).json({ message: 'Invalid credentials' });
-    // Use ternary operator to check role match
-    user.role !== loginType ? res.status(403).json({ message: `You are not authorized to login as ${loginType}` }) : (() => {
-      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
-      res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role }, token });
-    })();
+    if (!user) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    // 2️⃣ Check password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    // 3️⃣ Generate JWT (role comes from DB ✅)
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
+    );
+
+    // 4️⃣ Success response
+    res.status(200).json({
+      message: "Login successful",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      },
+      token
+    });
+
   } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ message: err.message });
+    console.error("Login error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };
+
 
 exports.forgotPassword = async (req, res) => {
   try {
@@ -85,12 +142,11 @@ exports.forgotPassword = async (req, res) => {
 
     console.log('User found, generating reset token...');
     
-    // Generate reset token (valid for 1 hour)
-    const resetToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '1h' });
+    // Generate reset token (valid for 1 hour) with email included for verification
+    const resetToken = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET || 'secret', { expiresIn: '1h' });
 
-    // Build frontend reset link. Prefer the request origin, then FRONTEND_URL, then localhost fallback.
-    const origin = req.get('origin') || process.env.FRONTEND_URL || 'http://localhost:5173';
-    const resetLink = `${origin.replace(/\/$/, '')}/reset-password?token=${resetToken}`;
+    // Create reset link with explicit localhost:5173 if FRONTEND_URL not set
+    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
 
     console.log('Reset link:', resetLink);
     console.log('Sending email to:', email);
@@ -117,7 +173,7 @@ exports.forgotPassword = async (req, res) => {
     );
 
     console.log('✅ Email sent successfully to:', email);
-    res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
+    res.json({ message: 'If an account with that email exists, a password reset link has been sent.', token: resetToken, userId: user._id });
   } catch (err) {
     console.error('❌ Forgot password error:', err);
     res.status(500).json({ message: 'Failed to send reset email. Please try again.' });
@@ -140,8 +196,15 @@ exports.resetPassword = async (req, res) => {
     user.password = hash;
     await user.save();
 
+    // Generate new JWT token for the user after password reset
+    const newToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+
     console.log('✅ Password reset successfully for user:', user.email);
-    res.json({ message: 'Password reset successfully' });
+    res.json({ 
+      message: 'Password reset successfully', 
+      token: newToken,
+      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+    });
   } catch (err) {
     console.error('Reset password error:', err);
     if (err.name === 'TokenExpiredError') {
