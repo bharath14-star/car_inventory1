@@ -1,20 +1,41 @@
 const express = require('express');
 const router = express.Router();
-const authController = require('../controllers/authController');
+
+/* ================= CONTROLLERS ================= */
+const {
+  register,
+  verifyOtp,
+  userLogin,
+  adminLogin,
+  forgotPassword,
+  resetPassword,
+  verify,
+  getAllUsers,
+  getUserById,
+  updateUser,
+  deleteUser
+} = require('../controllers/authController');
+
+/* ================= MIDDLEWARE ================= */
 const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 
-router.post('/register', authController.register);
-router.post('/login', authController.login);
-router.post('/verify-otp', authController.verifyOtp);
-router.post('/forgot-password', authController.forgotPassword);
-router.post('/reset-password', authController.resetPassword);
-router.get('/verify', authMiddleware, authController.verify);
+/* ================= AUTH ROUTES ================= */
+router.post('/register', register);
+router.post('/verify-otp', verifyOtp);
 
-// User management routes (admin only)
-router.get('/users', authMiddleware, adminMiddleware, authController.getAllUsers);
-router.get('/users/:id', authMiddleware, adminMiddleware, authController.getUserById);
-router.put('/users/:id', authMiddleware, adminMiddleware, authController.updateUser);
-router.delete('/users/:id', authMiddleware, adminMiddleware, authController.deleteUser);
+/* ✅ ROLE-BASED LOGIN */
+router.post('/login', userLogin);          // USER LOGIN
+router.post('/admin/login', adminLogin);   // ADMIN LOGIN
+
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
+router.get('/verify', authMiddleware, verify);
+
+/* ================= ADMIN USER MANAGEMENT ================= */
+router.get('/users', authMiddleware, adminMiddleware, getAllUsers);
+router.get('/users/:id', authMiddleware, adminMiddleware, getUserById);
+router.put('/users/:id', authMiddleware, adminMiddleware, updateUser);
+router.delete('/users/:id', authMiddleware, adminMiddleware, deleteUser);
 
 module.exports = router;

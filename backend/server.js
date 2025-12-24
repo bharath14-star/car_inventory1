@@ -3,7 +3,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-const url = require('url');
 
 const { MONGO_URI } = require('./controllers/config/Database');
 
@@ -13,37 +12,44 @@ const carRoutes = require('./routes/carRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Configure CORS to allow the frontend origin set in env, otherwise allow all origins for now.
-// In production set FRONTEND_URL to your deployed frontend (e.g. https://your-frontend.example)
-const frontendOrigin = process.env.FRONTEND_URL || '*';
-let corsOrigin = frontendOrigin;
-if (frontendOrigin !== '*') {
-  const parsed = url.parse(frontendOrigin);
-  corsOrigin = `${parsed.protocol}//${parsed.host}`;
-}
-app.use(cors({ origin: corsOrigin }));
+/* ================= CORS FIX (VERY IMPORTANT) ================= */
+app.use(cors({
+  origin: process.env.FRONTEND_URL, // exact frontend URL
+  credentials: true,
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// static uploads
-app.use('/uploads', express.static(path.join(__dirname, process.env.UPLOAD_DIR || 'uploads')));
+/* ================= STATIC UPLOADS FIX ================= */
+app.use(
+  '/uploads',
+  express.static(path.join(process.cwd(), 'uploads'))
+);
 
+/* ================= ROUTES ================= */
 app.use('/api/auth', authRoutes);
 app.use('/api', carRoutes);
 
-// basic error handler
+/* ================= ERROR HANDLER ================= */
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(500).json({ message: 'Server error', error: err.message });
+  res.status(500).json({
+    message: 'Server error',
+    error: err.message,
+  });
 });
 
-mongoose.connect(MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => {
-  console.log('MongoDB Atlas connected');
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-}).catch(err => {
-  console.error('MongoDB Atlas connection error:', err);
-  process.exit(1);
-});  
+/* ================= DB + SERVER ================= */
+mongoose
+  .connect(MONGO_URI)
+  .then(() => {
+    console.log('MongoDB Atlas connected');
+    app.listen(PORT, () =>
+      console.log(`Server running on port ${PORT}`)
+    );
+  })
+  .catch((err) => {
+    console.error('MongoDB Atlas connection error:', err);
+    process.exit(1);
+  });
