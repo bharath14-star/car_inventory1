@@ -1,7 +1,6 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 
-/* ================= CONTROLLERS ================= */
 const {
   register,
   verifyOtp,
@@ -9,33 +8,21 @@ const {
   adminLogin,
   forgotPassword,
   resetPassword,
-  verify,
-  getAllUsers,
-  getUserById,
-  updateUser,
-  deleteUser
-} = require('../controllers/authController');
-
-/* ================= MIDDLEWARE ================= */
-const authMiddleware = require('../middleware/authMiddleware');
-const adminMiddleware = require('../middleware/adminMiddleware');
+} = require("../controllers/authController");
 
 /* ================= AUTH ROUTES ================= */
-router.post('/register', register);
-router.post('/verify-otp', verifyOtp);
 
-/* ✅ ROLE-BASED LOGIN */
-router.post('/login', userLogin);          // USER LOGIN
-router.post('/admin/login', adminLogin);   // ADMIN LOGIN
+// Register & OTP
+router.post("/register", register);
+router.post("/verify-otp", verifyOtp);
+router.get("/verify-otp", verifyOtp); // For email link verification
 
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
-router.get('/verify', authMiddleware, verify);
+// Login (SEPARATE)
+router.post("/login", userLogin);          // USERS ONLY
+router.post("/admin/login", adminLogin);   // ADMINS ONLY
 
-/* ================= ADMIN USER MANAGEMENT ================= */
-router.get('/users', authMiddleware, adminMiddleware, getAllUsers);
-router.get('/users/:id', authMiddleware, adminMiddleware, getUserById);
-router.put('/users/:id', authMiddleware, adminMiddleware, updateUser);
-router.delete('/users/:id', authMiddleware, adminMiddleware, deleteUser);
+// Password reset
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 
 module.exports = router;
