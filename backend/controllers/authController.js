@@ -84,7 +84,8 @@ exports.register = async (req, res) => {
 /* ================= VERIFY OTP ================= */
 exports.verifyOtp = async (req, res) => {
   try {
-    const { userId, otp } = req.body;
+    // Support both POST (from frontend) and GET (from email link)
+    const { userId, otp } = req.method === 'GET' ? req.query : req.body;
 
     const pendingUser = await PendingUser.findById(userId);
     if (!pendingUser) {
