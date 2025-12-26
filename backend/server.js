@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 5000;
 
 /* ================= CORS FIX (VERY IMPORTANT) ================= */
 app.use(cors({
-  origin: process.env.FRONTEND_URL, // exact frontend URL
+  origin: 'https://bharath14-star.github.io', // exact frontend URL
   credentials: true,
 }));
 
