@@ -12,29 +12,44 @@ const carRoutes = require('./routes/carRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors("https://bharath14-star.github.io/car_inventory1/"));
+/* ================= CORS FIX (VERY IMPORTANT) ================= */
+app.use(cors({
+  origin: 'https://bharath14-star.github.io', // exact frontend URL
+  credentials: true,
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// static uploads
-app.use('/uploads', express.static(path.join(__dirname, process.env.UPLOAD_DIR || 'uploads')));
+/* ================= STATIC UPLOADS FIX ================= */
+app.use(
+  '/uploads',
+  express.static(path.join(process.cwd(), 'uploads'))
+);
 
+/* ================= ROUTES ================= */
 app.use('/api/auth', authRoutes);
 app.use('/api', carRoutes);
 
-// basic error handler
+/* ================= ERROR HANDLER ================= */
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(500).json({ message: 'Server error', error: err.message });
+  res.status(500).json({
+    message: 'Server error',
+    error: err.message,
+  });
 });
 
-mongoose.connect(MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => {
-  console.log('MongoDB Atlas connected');
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-}).catch(err => {
-  console.error('MongoDB Atlas connection error:', err);
-  process.exit(1);
-});  
+/* ================= DB + SERVER ================= */
+mongoose
+  .connect(MONGO_URI)
+  .then(() => {
+    console.log('MongoDB Atlas connected');
+    app.listen(PORT, () =>
+      console.log(`Server running on port ${PORT}`)
+    );
+  })
+  .catch((err) => {
+    console.error('MongoDB Atlas connection error:', err);
+    process.exit(1);
+  });

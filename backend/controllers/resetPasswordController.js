@@ -18,8 +18,19 @@ exports.resetPassword = async (req, res) => {
     user.password = hash;
     await user.save();
 
-    res.json({ message: 'Password reset successfully' });
+    // Generate new JWT token for the user after password reset
+    const newToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+
+    res.json({ 
+      message: 'Password reset successfully', 
+      token: newToken,
+      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+    });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('Reset password error:', err);
+    if (err.name === 'TokenExpiredError') {
+      return res.status(400).json({ message: 'Reset link has expired. Please request a new one.' });
+    }
+    res.status(500).json({ message: 'Password reset failed. Please try again.' });
   }
 };

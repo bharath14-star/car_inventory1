@@ -12,6 +12,7 @@ import UserRecordsList from './pages/UserRecordsList'
 import UserRecordDetails from './pages/UserRecordDetails'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import VerifyOtp from './pages/VerifyOtp'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -139,6 +140,7 @@ export default function App(){
               } />
               <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login/>} />
               <Route path="/register" element={token ? <Navigate to="/" replace /> : <Register/>} />
+              <Route path="/verify-otp" element={token ? <Navigate to="/" replace /> : <VerifyOtp/>} />
               <Route path="/forgot-password" element={token ? <Navigate to="/" replace /> : <ForgotPassword/>} />
               <Route path="/reset-password" element={token ? <Navigate to="/" replace /> : <ResetPassword/>} />
             </Routes>

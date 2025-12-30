@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import API from '../api'
 import { useNavigate, useLocation } from 'react-router-dom'
+import MediaModal from '../components/MediaModal'
 
 export default function RecordsList(){
   const [records, setRecords] = useState([]);
@@ -17,6 +18,10 @@ export default function RecordsList(){
   const [sortBy, setSortBy] = useState('inOutDateTime');
   const [sortDir, setSortDir] = useState('desc');
   const [statusFilter, setStatusFilter] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMedia, setModalMedia] = useState([]);
+  const [modalInitialIndex, setModalInitialIndex] = useState(0);
+  const [hoveredImage, setHoveredImage] = useState(null); // { recordId, index }
 
   const fetchRecords = async (opts = {}) => {
     try {
@@ -153,8 +158,7 @@ export default function RecordsList(){
             <th>Referral ID</th>
             <th>In/Out</th>
             <th>Date</th>
-            <th>Photos</th>
-            <th>Video</th>
+            <th>Media</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -167,14 +171,54 @@ export default function RecordsList(){
               <td>{r.inOutStatus}</td>
               <td>{r.inOutDateTime ? new Date(r.inOutDateTime).toLocaleString() : ''}</td>
               <td>
-                {r.photos && r.photos.map((p,i)=> (
-                  <img key={i} src={`http://localhost:5000${p}`} alt="photo" style={{ height: 50, marginRight: 6 }} />
-                ))}
-              </td>
-              <td>
-                {r.video && (
-                  <a href={`http://localhost:5000${r.video}`} target="_blank" rel="noreferrer">View</a>
-                )}
+                <div className="d-flex align-items-center" style={{ position: 'relative' }}>
+                  {r.photos && r.photos.slice(0, 3).map((p,i)=> (
+                    <div key={i} style={{ position: 'relative', display: 'inline-block' }}>
+                      <img src={`http://localhost:5000${p}`} alt="photo" style={{ height: 80, width: 80, objectFit: 'cover', marginRight: 6, cursor: 'pointer', borderRadius: '4px' }}
+                        onMouseEnter={() => setHoveredImage({ recordId: r._id, index: i })}
+                        onMouseLeave={() => setHoveredImage(null)}
+                        onClick={() => {
+                          const allMedia = [...(r.photos || []), ...(r.video ? [r.video] : [])];
+                          setModalMedia(allMedia);
+                          setModalInitialIndex(i);
+                          setModalOpen(true);
+                        }}
+                      />
+                      {hoveredImage && hoveredImage.recordId === r._id && hoveredImage.index === i && (
+                        <div style={{ position: 'absolute', top: '-210px', left: '0', zIndex: 1000, background: 'white', border: '1px solid #ccc', borderRadius: '4px', padding: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                          <img src={`http://localhost:5000${p}`} alt="preview" style={{ height: '200px', width: '200px', objectFit: 'cover' }} />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {r.photos && r.photos.length > 3 && (
+                    <div
+                      className="d-flex align-items-center justify-content-center bg-secondary text-white rounded-circle"
+                      style={{ height: 80, width: 80, cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
+                      onClick={() => {
+                        const allMedia = [...(r.photos || []), ...(r.video ? [r.video] : [])];
+                        setModalMedia(allMedia);
+                        setModalInitialIndex(0);
+                        setModalOpen(true);
+                      }}
+                    >
+                      +{r.photos.length - 3}
+                    </div>
+                  )}
+                  {r.video && (
+                    <button
+                      className="btn btn-link p-0"
+                      onClick={() => {
+                        const allMedia = [...(r.photos || []), r.video];
+                        setModalMedia(allMedia);
+                        setModalInitialIndex((r.photos || []).length);
+                        setModalOpen(true);
+                      }}
+                    >
+                      View Video
+                    </button>
+                  )}
+                </div>
               </td>
               <td>
                 <button className="btn btn-sm btn-info me-2" onClick={()=>{ navigate(`/record/${r._id}`) }}>View Details</button>
@@ -207,6 +251,15 @@ export default function RecordsList(){
           <input type="number" min={1} max={totalPages} value={page} onChange={e=>{ const v = Number(e.target.value) || 1; setPage(Math.min(Math.max(1, v), totalPages)); }} style={{width:80, marginLeft:8}} />
         </div>
       </div>
+
+      <MediaModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        mediaUrls={modalMedia}
+        initialIndex={modalInitialIndex}
+      />
+
+
     </div>
   )
 }
