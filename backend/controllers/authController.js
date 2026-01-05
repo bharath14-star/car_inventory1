@@ -5,15 +5,14 @@ const { sendEmail } = require('../utils/email');
 
 exports.register = async (req, res) => {
   try {
-    const { firstName, lastName, email, phone, password, confirmPassword, employeeId } = req.body;
-    if (!firstName || !lastName || !email || !phone || !password || !confirmPassword || !employeeId) return res.status(400).json({ message: 'All fields are required' });
+    const { firstName, lastName, email, phone, password, confirmPassword } = req.body;
+    if (!firstName || !lastName || !email || !phone || !password || !confirmPassword) return res.status(400).json({ message: 'All fields are required' });
     if (password !== confirmPassword) return res.status(400).json({ message: 'Passwords do not match' });
-    if (employeeId.length > 16) return res.status(400).json({ message: 'Employee ID must be 16 characters or less' });
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ message: 'Email already registered' });
     const hash = await bcrypt.hash(password, 10);
     const name = `${firstName} ${lastName}`;
-    const user = await User.create({ firstName, lastName, name, email, phone, password: hash, employeeId });
+    const user = await User.create({ firstName, lastName, name, email, phone, password: hash });
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
     res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role }, token });
   } catch (err) {
@@ -126,95 +125,6 @@ exports.verify = async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// Get all users (admin only)
-exports.getAllUsers = async (req, res) => {
-  try {
-    // Check if user is admin
-    const admin = await User.findById(req.user.id);
-    if (!admin || admin.role !== 'admin') {
-      return res.status(403).json({ message: 'Access denied. Admin only.' });
-    }
-
-    const users = await User.find().select('-password').sort({ createdAt: -1 });
-    res.json({ users });
-  } catch (err) {
-    console.error('Get all users error:', err);
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// Get single user by ID (admin only)
-exports.getUserById = async (req, res) => {
-  try {
-    // Check if user is admin
-    const admin = await User.findById(req.user.id);
-    if (!admin || admin.role !== 'admin') {
-      return res.status(403).json({ message: 'Access denied. Admin only.' });
-    }
-
-    const user = await User.findById(req.params.id).select('-password');
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json({ user });
-  } catch (err) {
-    console.error('Get user by ID error:', err);
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// Update user (admin only)
-exports.updateUser = async (req, res) => {
-  try {
-    // Check if user is admin
-    const admin = await User.findById(req.user.id);
-    if (!admin || admin.role !== 'admin') {
-      return res.status(403).json({ message: 'Access denied. Admin only.' });
-    }
-
-    const { firstName, lastName, email, phone, employeeId } = req.body;
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    // Check if email is already taken by another user
-    if (email && email !== user.email) {
-      const exists = await User.findOne({ email });
-      if (exists) return res.status(400).json({ message: 'Email already registered' });
-    }
-
-    if (firstName) user.firstName = firstName;
-    if (lastName) user.lastName = lastName;
-    if (firstName || lastName) user.name = `${user.firstName} ${user.lastName}`;
-    if (email) user.email = email;
-    if (phone) user.phone = phone;
-    if (employeeId) user.employeeId = employeeId;
-
-    await user.save();
-    res.json({ message: 'User updated successfully', user: user.toObject() });
-  } catch (err) {
-    console.error('Update user error:', err);
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// Delete user (admin only)
-exports.deleteUser = async (req, res) => {
-  try {
-    // Check if user is admin
-    const admin = await User.findById(req.user.id);
-    if (!admin || admin.role !== 'admin') {
-      return res.status(403).json({ message: 'Access denied. Admin only.' });
-    }
-
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    await User.deleteOne({ _id: req.params.id });
-    res.json({ message: 'User deleted successfully' });
-  } catch (err) {
-    console.error('Delete user error:', err);
     res.status(500).json({ message: err.message });
   }
 };
