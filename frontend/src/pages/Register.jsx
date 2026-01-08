@@ -5,7 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import './Register.css';
 
 export default function Register() {
-  const { register, handleSubmit, watch } = useForm();
+  const { register, handleSubmit, watch, formState: { errors } } = useForm();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -40,11 +40,11 @@ export default function Register() {
               <label className="form-label">First Name</label>
               <input
                 type="text"
-                className="form-control"
+                className={`form-control ${errors.firstName ? 'is-invalid' : ''}`}
                 placeholder="Enter first name"
-                {...register('firstName')}
-                required
+                {...register('firstName', { required: 'First name is required' })}
               />
+              {errors.firstName && <div className="invalid-feedback">{errors.firstName.message}</div>}
             </div>
             <div className="col-md-6">
               <label className="form-label">Last Name</label>
@@ -62,11 +62,17 @@ export default function Register() {
             <label className="form-label">Email Address</label>
             <input
               type="email"
-              className="form-control"
+              className={`form-control ${errors.email ? 'is-invalid' : ''}`}
               placeholder="Enter your email"
-              {...register('email')}
-              required
+              {...register('email', {
+                required: 'Email is required',
+                pattern: {
+                  value: /^\S+@\S+$/i,
+                  message: 'Invalid email address'
+                }
+              })}
             />
+            {errors.email && <div className="invalid-feedback">{errors.email.message}</div>}
           </div>
 
           <div className="mb-3">
@@ -84,12 +90,18 @@ export default function Register() {
             <label className="form-label">Employee ID</label>
             <input
               type="text"
-              className="form-control"
+              className={`form-control ${errors.employeeId ? 'is-invalid' : ''}`}
               placeholder="Enter employee ID (max 16 characters)"
-              {...register('employeeId')}
+              {...register('employeeId', {
+                required: 'Employee ID is required',
+                maxLength: {
+                  value: 16,
+                  message: 'Employee ID must be 16 characters or less'
+                }
+              })}
               maxLength="16"
-              required
             />
+            {errors.employeeId && <div className="invalid-feedback">{errors.employeeId.message}</div>}
           </div>
 
           <div className="mb-3">
@@ -117,10 +129,12 @@ export default function Register() {
             <div className="input-group">
               <input
                 type={showConfirmPassword ? 'text' : 'password'}
-                className="form-control"
+                className={`form-control ${errors.confirmPassword ? 'is-invalid' : ''}`}
                 placeholder="Confirm your password"
-                {...register('confirmPassword')}
-                required
+                {...register('confirmPassword', {
+                  required: 'Please confirm your password',
+                  validate: value => value === watch('password') || 'Passwords do not match'
+                })}
               />
               <button
                 className="btn btn-outline-secondary"
@@ -130,6 +144,7 @@ export default function Register() {
                 {showConfirmPassword ? 'Hide' : 'Show'}
               </button>
             </div>
+            {errors.confirmPassword && <div className="invalid-feedback d-block">{errors.confirmPassword.message}</div>}
           </div>
 
           <button type="submit" className="btn btn-primary w-100">
