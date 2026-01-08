@@ -52,9 +52,9 @@ export default function Register() {
                 type="text"
                 className="form-control"
                 placeholder="Enter last name"
-                {...register('lastName')}
-                required
-              />
+              {...register('lastName', { required: 'Last name is required' })}
+            />
+            {errors.lastName && <div className="text-danger">{errors.lastName.message}</div>}
             </div>
           </div>
 
@@ -79,11 +79,11 @@ export default function Register() {
             <label className="form-label">Phone Number</label>
             <input
               type="tel"
-              className="form-control"
+              className={`form-control ${errors.phone ? 'is-invalid' : ''}`}
               placeholder="Enter phone number"
-              {...register('phone')}
-              required
+              {...register('phone', { required: 'Phone number is required' })}
             />
+            {errors.phone && <div className="invalid-feedback">{errors.phone.message}</div>}
           </div>
 
           <div className="mb-3">

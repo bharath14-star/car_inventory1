@@ -174,7 +174,7 @@ export default function RecordsList(){
                 <div className="d-flex align-items-center" style={{ position: 'relative' }}>
                   {r.photos && r.photos.slice(0, 3).map((p,i)=> (
                     <div key={i} style={{ position: 'relative', display: 'inline-block' }}>
-                      <img src={`http://localhost:5000${p}`} alt="photo" style={{ height: 80, width: 80, objectFit: 'cover', marginRight: 6, cursor: 'pointer', borderRadius: '4px' }}
+                      <img src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://car-inventory1-1.onrender.com'}${p}`} alt="photo" style={{ height: 80, width: 80, objectFit: 'cover', marginRight: 6, cursor: 'pointer', borderRadius: '4px' }}
                         onMouseEnter={() => setHoveredImage({ recordId: r._id, index: i })}
                         onMouseLeave={() => setHoveredImage(null)}
                         onClick={() => {
@@ -186,7 +186,7 @@ export default function RecordsList(){
                       />
                       {hoveredImage && hoveredImage.recordId === r._id && hoveredImage.index === i && (
                         <div style={{ position: 'absolute', top: '-210px', left: '0', zIndex: 1000, background: 'white', border: '1px solid #ccc', borderRadius: '4px', padding: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                          <img src={`http://localhost:5000${p}`} alt="preview" style={{ height: '200px', width: '200px', objectFit: 'cover' }} />
+                          <img src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://car-inventory1-1.onrender.com'}${p}`} alt="preview" style={{ height: '200px', width: '200px', objectFit: 'cover' }} />
                         </div>
                       )}
                     </div>
