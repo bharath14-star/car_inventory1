@@ -12,7 +12,11 @@ const carRoutes = require('./routes/carRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors({ origin: "https://bharath14-star.github.io" }));
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production'
+    ? "https://bharath14-star.github.io"
+    : ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"]
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
