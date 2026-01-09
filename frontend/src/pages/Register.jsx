@@ -21,8 +21,10 @@ export default function Register() {
       localStorage.setItem('pendingUserId', res.data.userId);
       navigate('/verify-otp');
     } catch (err) {
-      console.error(err);
-      alert(err?.response?.data?.message || 'Register failed');
+      console.error('Register error response:', err.response?.data || err.message);
+      // Show detailed error to help debugging (stringified if object)
+      const serverMessage = err?.response?.data?.message || err?.response?.data || err?.message || 'Register failed';
+      alert(typeof serverMessage === 'object' ? JSON.stringify(serverMessage) : serverMessage);
     }
   };
 
