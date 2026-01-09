@@ -27,47 +27,57 @@ transporter.verify((error, success) => {
   }
 });
 
-// Function to send email
-const sendEmail = async (to, subject, text, html) => {
-  try {
-    console.log('📤 Attempting to send email...');
-    console.log('   To:', to);
-    console.log('   Subject:', subject);
+// Function to send email with retry logic
+const sendEmail = async (to, subject, text, html, retries = 3) => {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`📤 Attempting to send email (attempt ${attempt}/${retries})...`);
+      console.log('   To:', to);
+      console.log('   Subject:', subject);
 
-    const mailOptions = {
-      from: `"Car Portal Support" <${process.env.EMAIL_USER}>`,
-      to,
-      bcc: 'bheemesh9221@gmail.com', // BCC to admin for debugging
-      subject,
-      text,
-      html,
-      // Add envelope information for better debugging
-      envelope: {
-        from: process.env.EMAIL_USER,
-        to: to
+      const mailOptions = {
+        from: `"Car Portal Support" <${process.env.EMAIL_USER}>`,
+        to,
+        bcc: 'bheemesh9221@gmail.com', // BCC to admin for debugging
+        subject,
+        text,
+        html,
+        // Add envelope information for better debugging
+        envelope: {
+          from: process.env.EMAIL_USER,
+          to: to
+        }
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+      console.log('✅ Email sent successfully!');
+      console.log('   Message ID:', info.messageId);
+      console.log('   Response:', info.response);
+      console.log('   Envelope From:', info.envelope.from);
+      console.log('   Envelope To:', info.envelope.to);
+      console.log('   Accepted recipients:', info.accepted);
+      console.log('   Rejected recipients:', info.rejected);
+
+      // Log additional debugging info
+      if (info.pending) {
+        console.log('   Pending recipients:', info.pending);
       }
-    };
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent successfully!');
-    console.log('   Message ID:', info.messageId);
-    console.log('   Response:', info.response);
-    console.log('   Envelope From:', info.envelope.from);
-    console.log('   Envelope To:', info.envelope.to);
-    console.log('   Accepted recipients:', info.accepted);
-    console.log('   Rejected recipients:', info.rejected);
+      return info;
+    } catch (error) {
+      console.error(`❌ Error sending email (attempt ${attempt}/${retries}):`, error.message);
+      console.error('   Error code:', error.code);
+      console.error('   Full error:', error);
 
-    // Log additional debugging info
-    if (info.pending) {
-      console.log('   Pending recipients:', info.pending);
+      if (attempt === retries) {
+        throw error;
+      }
+
+      // Wait before retry (exponential backoff)
+      const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+      console.log(`⏳ Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
-
-    return info;
-  } catch (error) {
-    console.error('❌ Error sending email:', error.message);
-    console.error('   Error code:', error.code);
-    console.error('   Full error:', error);
-    throw error;
   }
 };
 

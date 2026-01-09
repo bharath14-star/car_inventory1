@@ -1,10 +1,11 @@
-# Fix Registration 400 Error
+# Fix OTP Generation in Registration Flow
 
 ## Tasks
-- [x] Update Register.jsx to add proper form validation using react-hook-form
-- [x] Add validation rules for all required fields
-- [x] Display error messages below each field
-- [x] Test the registration form to ensure validation works (server running on http://localhost:5173/car_inventory1/)
+- [x] Add retry logic to email sending for reliability
+- [x] Make OTP email sending asynchronous to ensure registration succeeds immediately
+- [x] Add resend OTP functionality for users who didn't receive the OTP
+- [x] Update frontend to include resend OTP button
+- [x] Test the OTP generation and resend functionality
 
 ## Status
 - [x] Plan approved by user

@@ -35,8 +35,8 @@ exports.register = async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    // Send OTP email
-    await sendEmail(
+    // Send OTP email asynchronously to ensure registration succeeds immediately
+    sendEmail(
       email,
       'OTP Verification - Car Portal',
       `Your OTP for account verification is: ${otp}. This OTP will expire in 10 minutes.`,
@@ -52,7 +52,10 @@ exports.register = async (req, res) => {
           <p style="color: #999; font-size: 12px;">Car Portal Support Team</p>
         </div>
       `
-    );
+    ).catch(err => {
+      console.error('Failed to send OTP email:', err);
+      // Note: Registration still succeeds even if email fails
+    });
 
     res.json({ message: 'Registration successful. Please check your email for OTP verification.', userId: pendingUser._id });
   } catch (err) {
@@ -251,6 +254,51 @@ exports.verifyOtp = async (req, res) => {
     res.json({ user: { id: user._id, name: user.name, email: user.email, role: user.role }, token });
   } catch (err) {
     console.error('OTP verification error:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.resendOtp = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ message: 'User ID is required' });
+
+    const pendingUser = await PendingUser.findById(userId);
+    if (!pendingUser) return res.status(404).json({ message: 'Pending user not found' });
+
+    // Generate new OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Update pending user with new OTP
+    pendingUser.otp = otp;
+    pendingUser.otpExpires = otpExpires;
+    await pendingUser.save();
+
+    // Send OTP email asynchronously
+    sendEmail(
+      pendingUser.email,
+      'OTP Verification - Car Portal',
+      `Your new OTP for account verification is: ${otp}. This OTP will expire in 10 minutes.`,
+      `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #667eea;">OTP Verification</h2>
+          <p>You requested a new OTP for your Car Portal account.</p>
+          <p>Your new OTP for account verification is:</p>
+          <div style="font-size: 24px; font-weight: bold; color: #667eea; text-align: center; margin: 20px 0;">${otp}</div>
+          <p>This OTP will expire in 10 minutes.</p>
+          <p>If you didn't request this, please ignore this email.</p>
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+          <p style="color: #999; font-size: 12px;">Car Portal Support Team</p>
+        </div>
+      `
+    ).catch(err => {
+      console.error('Failed to send resend OTP email:', err);
+    });
+
+    res.json({ message: 'New OTP sent to your email.' });
+  } catch (err) {
+    console.error('Resend OTP error:', err);
     res.status(500).json({ message: err.message });
   }
 };

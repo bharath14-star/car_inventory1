@@ -6,6 +6,8 @@ export default function VerifyOtp() {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,6 +41,29 @@ export default function VerifyOtp() {
       setError(err?.response?.data?.message || 'OTP verification failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setResendLoading(true);
+    setResendMessage('');
+    setError('');
+
+    const userId = localStorage.getItem('pendingUserId');
+    if (!userId) {
+      setError('No pending verification found. Please register first.');
+      setResendLoading(false);
+      return;
+    }
+
+    try {
+      const res = await API.post('/auth/resend-otp', { userId });
+      setResendMessage(res.data.message);
+    } catch (err) {
+      console.error(err);
+      setError(err?.response?.data?.message || 'Failed to resend OTP');
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -78,7 +103,19 @@ export default function VerifyOtp() {
               {loading ? 'Verifying...' : 'Verify OTP'}
             </button>
           </form>
+          {resendMessage && (
+            <div className="alert alert-success mt-3" role="alert">
+              {resendMessage}
+            </div>
+          )}
           <div className="text-center mt-3">
+            <button
+              className="btn btn-outline-secondary me-2"
+              onClick={handleResendOtp}
+              disabled={resendLoading}
+            >
+              {resendLoading ? 'Sending...' : 'Resend OTP'}
+            </button>
             <button
               className="btn btn-link"
               onClick={() => navigate('/register')}
