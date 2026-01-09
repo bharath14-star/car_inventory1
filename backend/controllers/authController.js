@@ -16,22 +16,9 @@ exports.register = async (req, res) => {
     const userExists = await User.findOne({ email });
     if (userExists) return res.status(400).json({ message: 'Email already registered' });
 
-    // Check if pending user exists
-    const pendingExists = await PendingUser.findOne({ email });
-    
-    // If pending user exists, check if OTP has expired
-    if (pendingExists) {
-      const now = new Date();
-      // If OTP has expired, allow re-registration by deleting the old pending user
-      if (pendingExists.otpExpires < now) {
-        console.log('Expired pending user found, deleting and allowing re-registration for email:', email);
-        await PendingUser.deleteOne({ email });
-      } else {
-        // OTP is still valid, don't allow registration
-        return res.status(400).json({ message: 'Email already registered. Please verify your OTP or wait for it to expire.' });
-      }
-    }
-
+    // Always (re)generate OTP and upsert pending user. This allows a user to
+    // re-request registration/OTP immediately and avoids returning 400 for
+    // already-pending emails. We still use an atomic upsert to prevent races.
     const hash = await bcrypt.hash(password, 10);
     const name = `${firstName} ${lastName}`;
 
@@ -39,7 +26,14 @@ exports.register = async (req, res) => {
     const otp = crypto.randomInt(100000, 999999).toString();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    const pendingUser = await PendingUser.create({ firstName, lastName, name, email, phone, password: hash, employeeId, otp, otpExpires });
+    // Use an atomic findOneAndUpdate with upsert so we either create a new
+    // pending user or update the existing one (regenerating OTP and updating
+    // any supplied fields such as password/email/phone).
+    const pendingUser = await PendingUser.findOneAndUpdate(
+      { email },
+      { firstName, lastName, name, email, phone, password: hash, employeeId, otp, otpExpires },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
 
     // Send OTP email
     await sendEmail(
@@ -63,6 +57,10 @@ exports.register = async (req, res) => {
     res.json({ message: 'Registration successful. Please check your email for OTP verification.', userId: pendingUser._id });
   } catch (err) {
     console.error('Register error:', err);
+    // Handle duplicate key (race-condition) more gracefully
+    if (err && (err.code === 11000 || (err.message && err.message.includes('duplicate key')))) {
+      return res.status(400).json({ message: 'Email already registered. Please verify your OTP or wait for it to expire.' });
+    }
     res.status(500).json({ message: err.message });
   }
 };
