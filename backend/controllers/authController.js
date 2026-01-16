@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const PendingUser = require('../models/PendingUser');
+const Otp = require('../models/Otp');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -16,24 +17,28 @@ exports.register = async (req, res) => {
     const userExists = await User.findOne({ email });
     if (userExists) return res.status(400).json({ message: 'Email already registered' });
 
-    // Always (re)generate OTP and upsert pending user. This allows a user to
-    // re-request registration/OTP immediately and avoids returning 400 for
-    // already-pending emails. We still use an atomic upsert to prevent races.
+    // Hash password
     const hash = await bcrypt.hash(password, 10);
     const name = `${firstName} ${lastName}`;
 
-    // Generate OTP
+    // Use an atomic findOneAndUpdate with upsert so we either create a new
+    // pending user or update the existing one (updating any supplied fields).
+    const pendingUser = await PendingUser.findOneAndUpdate(
+      { email },
+      { firstName, lastName, name, email, phone, password: hash, employeeId },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    // Generate and store OTP separately in Otp collection
     const otp = crypto.randomInt(100000, 999999).toString();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Use an atomic findOneAndUpdate with upsert so we either create a new
-    // pending user or update the existing one (regenerating OTP and updating
-    // any supplied fields such as password/email/phone).
-    const pendingUser = await PendingUser.findOneAndUpdate(
-      { email },
-      { firstName, lastName, name, email, phone, password: hash, employeeId, otp, otpExpires },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+    await Otp.create({
+      email,
+      otp,
+      purpose: 'registration',
+      expiresAt: otpExpires
+    });
 
     // Send OTP email asynchronously to ensure registration succeeds immediately
     sendEmail(
@@ -225,12 +230,32 @@ exports.verifyOtp = async (req, res) => {
     const { userId, otp } = req.body;
     if (!userId || !otp) return res.status(400).json({ message: 'User ID and OTP are required' });
 
+    // Find pending user
     const pendingUser = await PendingUser.findById(userId);
     if (!pendingUser) return res.status(404).json({ message: 'Pending user not found' });
 
-    if (!pendingUser.otp || pendingUser.otp !== otp) return res.status(400).json({ message: 'Invalid OTP' });
+    // Find and verify OTP
+    const otpRecord = await Otp.findOne({
+      email: pendingUser.email,
+      purpose: 'registration',
+      isVerified: false
+    });
 
-    if (pendingUser.otpExpires < new Date()) return res.status(400).json({ message: 'OTP has expired' });
+    if (!otpRecord) return res.status(400).json({ message: 'No OTP found for this email' });
+
+    if (otpRecord.attempts >= 5) return res.status(400).json({ message: 'Too many failed attempts. Please request a new OTP.' });
+
+    if (otpRecord.otp !== otp) {
+      otpRecord.attempts += 1;
+      await otpRecord.save();
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+
+    if (otpRecord.expiresAt < new Date()) return res.status(400).json({ message: 'OTP has expired' });
+
+    // Mark OTP as verified
+    otpRecord.isVerified = true;
+    await otpRecord.save();
 
     // Create verified user from pending user data
     const user = await User.create({
@@ -258,6 +283,49 @@ exports.verifyOtp = async (req, res) => {
   }
 };
 
+exports.sendOtp = async (req, res) => {
+  try {
+    const { email, purpose = 'registration' } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+
+    // Generate OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await Otp.create({
+      email,
+      otp,
+      purpose,
+      expiresAt: otpExpires
+    });
+
+    // Send OTP email asynchronously
+    sendEmail(
+      email,
+      'OTP Verification - Car Portal',
+      `Your OTP for account verification is: ${otp}. This OTP will expire in 10 minutes.`,
+      `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #667eea;">OTP Verification</h2>
+          <p>Your OTP for account verification is:</p>
+          <div style="font-size: 24px; font-weight: bold; color: #667eea; text-align: center; margin: 20px 0;">${otp}</div>
+          <p>This OTP will expire in 10 minutes.</p>
+          <p>If you didn't request this, please ignore this email.</p>
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+          <p style="color: #999; font-size: 12px;">Car Portal Support Team</p>
+        </div>
+      `
+    ).catch(err => {
+      console.error('Failed to send OTP email:', err);
+    });
+
+    res.json({ message: 'OTP sent to your email.' });
+  } catch (err) {
+    console.error('Send OTP error:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
 exports.resendOtp = async (req, res) => {
   try {
     const { userId } = req.body;
@@ -266,14 +334,16 @@ exports.resendOtp = async (req, res) => {
     const pendingUser = await PendingUser.findById(userId);
     if (!pendingUser) return res.status(404).json({ message: 'Pending user not found' });
 
-    // Generate new OTP
+    // Generate new OTP and store in Otp collection
     const otp = crypto.randomInt(100000, 999999).toString();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Update pending user with new OTP
-    pendingUser.otp = otp;
-    pendingUser.otpExpires = otpExpires;
-    await pendingUser.save();
+    await Otp.create({
+      email: pendingUser.email,
+      otp,
+      purpose: 'registration',
+      expiresAt: otpExpires
+    });
 
     // Send OTP email asynchronously
     sendEmail(

@@ -6,6 +6,7 @@ const adminMiddleware = require('../middleware/adminMiddleware');
 
 router.post('/register', authController.register);
 router.post('/login', authController.login);
+router.post('/send-otp', authController.sendOtp);
 router.post('/verify-otp', authController.verifyOtp);
 router.post('/resend-otp', authController.resendOtp);
 router.post('/forgot-password', authController.forgotPassword);

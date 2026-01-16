@@ -6,7 +6,7 @@ const transporter = nodemailer.createTransport({
   port: 465,
   secure: true, // true for 465, false for other ports
   auth: {
-    user: process.env.EMAIL_USER,
+    user: process.env.EMAIL,
     pass: process.env.EMAIL_PASS
   },
   tls: {
@@ -18,12 +18,12 @@ const transporter = nodemailer.createTransport({
 transporter.verify((error, success) => {
   if (error) {
     console.error('❌ Email configuration error:', error.message);
-    console.log('EMAIL_USER:', process.env.EMAIL_USER);
+    console.log('EMAIL:', process.env.EMAIL);
     console.log('EMAIL_PASS exists:', !!process.env.EMAIL_PASS);
     console.log('⚠️  Check your .env file and make sure you are using Gmail App Password');
   } else {
     console.log('✅ Email server is ready to send messages');
-    console.log('📧 Configured email:', process.env.EMAIL_USER);
+    console.log('📧 Configured email:', process.env.EMAIL);
   }
 });
 
