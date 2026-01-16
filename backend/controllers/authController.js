@@ -69,6 +69,10 @@ exports.register = async (req, res) => {
     if (err && (err.code === 11000 || (err.message && err.message.includes('duplicate key')))) {
       return res.status(400).json({ message: 'Email already registered. Please verify your OTP or wait for it to expire.' });
     }
+    // Handle connection timeout specifically
+    if (err.message && err.message.includes('Connection timeout')) {
+      return res.status(500).json({ message: 'Database connection timeout. Please try again later.' });
+    }
     res.status(500).json({ message: err.message });
   }
 };

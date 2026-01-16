@@ -20,6 +20,14 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Timeout middleware to prevent hanging requests
+app.use((req, res, next) => {
+  // Set timeout for each request (30 seconds)
+  req.setTimeout(30000);
+  res.setTimeout(30000);
+  next();
+});
+
 // static uploads
 app.use('/uploads', express.static(path.join(__dirname, process.env.UPLOAD_DIR || 'uploads')));
 
@@ -34,7 +42,12 @@ app.use((err, req, res, next) => {
 
 mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
-  useUnifiedTopology: true
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
+  socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
+  connectTimeoutMS: 10000, // Give up initial connection after 10 seconds
+  bufferMaxEntries: 0, // Disable mongoose buffering
+  bufferCommands: false, // Disable mongoose buffering
 }).then(() => {
   console.log('MongoDB Atlas connected');
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
