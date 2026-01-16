@@ -1,17 +1,15 @@
-# TODO: Fix Registration to Save Details Only After OTP Verification
+# Cloudinary Integration for Media Storage
 
-## Steps to Complete
+## Tasks
+- [x] Add cloudinary dependency to package.json
+- [x] Create config/cloudinary.js for Cloudinary configuration
+- [x] Update server.js to initialize Cloudinary and remove static uploads
+- [x] Modify routes/carRoutes.js to use Cloudinary storage for multer
+- [x] Update controllers/carController.js to handle Cloudinary URLs and deletions
+- [x] Create .env.example with Cloudinary environment variables
+- [x] Install backend dependencies
+- [ ] Test integration (manual step)
 
-- [x] Create PendingUser model in backend/models/PendingUser.js (similar to User but without isVerified field)
-- [x] Update register function in backend/controllers/authController.js:
-  - Create PendingUser instead of User
-  - Send OTP email
-  - Return pendingUser._id as userId
-- [x] Update verifyOtp function in backend/controllers/authController.js:
-  - Find PendingUser by userId
-  - Verify OTP and expiration
-  - If valid, create User from PendingUser data, set isVerified: true
-  - Delete PendingUser
-  - Generate JWT token
-- [x] Ensure email uniqueness check in register: Check both User and PendingUser
-- [ ] Test the registration flow: Register -> Verify OTP -> User saved only after verification
+## Notes
+- Ensure Cloudinary account is set up and API keys are configured in .env
+- Test in development first, then deploy to production

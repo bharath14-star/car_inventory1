@@ -1,29 +1,33 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('cloudinary').v2;
 const carController = require('../controllers/carController');
 const auth = require('../middleware/authMiddleware');
 const admin = require('../middleware/adminMiddleware');
 
-const fs = require('fs');
-const uploadDir = path.join(__dirname, '..', process.env.UPLOAD_DIR || 'uploads');
-
-// ensure upload directory exists
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname);
-    const name = `${Date.now()}-${Math.round(Math.random()*1e9)}${ext}`;
-    cb(null, name);
+// Cloudinary storage with dynamic params based on fieldname
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: async (req, file) => {
+    if (file.fieldname === 'photos') {
+      return {
+        folder: 'car_inventory/photos',
+        allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+        transformation: [{ width: 1000, height: 1000, crop: 'limit' }]
+      };
+    } else if (file.fieldname === 'video') {
+      return {
+        folder: 'car_inventory/videos',
+        allowed_formats: ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'],
+        resource_type: 'video'
+      };
+    }
   }
 });
-// allow images for photos and videos for video field; basic mime-type filtering
+
+// File filter for validation
 const fileFilter = (req, file, cb) => {
   if (file.fieldname === 'photos') {
     if (file.mimetype.startsWith('image/')) return cb(null, true);
@@ -36,15 +40,19 @@ const fileFilter = (req, file, cb) => {
   cb(null, false);
 };
 
-// set a generous file size limit (per-file)
-const upload = multer({ storage, fileFilter, limits: { fileSize: 200 * 1024 * 1024 } });
+// Multer upload configuration
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: { fileSize: 200 * 1024 * 1024 } // 200MB max per file
+});
 
 // create with files: photos (array), video (single)
-router.post('/car-entry', auth, upload.fields([{ name: 'photos', maxCount: 6 }, { name: 'video', maxCount: 1 }]), carController.createCar);
+router.post('/car-entry', auth, uploadFields.fields([{ name: 'photos', maxCount: 6 }, { name: 'video', maxCount: 1 }]), carController.createCar);
 router.get('/dashboard', auth, carController.getStats);
 router.get('/car-records', auth, carController.getAllCars);
 router.get('/car/:id', auth, carController.getCar);
-router.put('/car/:id', auth, upload.fields([{ name: 'photos', maxCount: 6 }, { name: 'video', maxCount: 1 }]), carController.updateCar);
+router.put('/car/:id', auth, uploadFields.fields([{ name: 'photos', maxCount: 6 }, { name: 'video', maxCount: 1 }]), carController.updateCar);
 router.delete('/car/:id', auth, carController.deleteCar);
 router.delete('/car/:id/photos/:index', auth, admin, carController.deletePhoto);
 router.delete('/car/:id/video', auth, admin, carController.deleteVideo);

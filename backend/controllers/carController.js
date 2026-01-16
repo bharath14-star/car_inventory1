@@ -1,19 +1,16 @@
 const Car = require('../models/Car');
-const fs = require('fs');
-const path = require('path');
+const cloudinary = require('cloudinary').v2;
 const ExcelJS = require('exceljs');
 
-const uploadDir = path.join(__dirname, '..', process.env.UPLOAD_DIR || 'uploads');
-
-function removeFileIfExists(relPath) {
-  if (!relPath) return;
-  // relPath expected like '/uploads/filename.ext'
-  const p = path.join(__dirname, '..', relPath.replace(/^\//, ''));
-  try {
-    if (fs.existsSync(p)) fs.unlinkSync(p);
-  } catch (e) {
-    console.warn('Failed to remove file', p, e.message);
-  }
+function removeCloudinaryFile(url) {
+  if (!url) return;
+  // Extract public_id from Cloudinary URL
+  const publicId = url.split('/').slice(-2).join('/').split('.')[0];
+  cloudinary.uploader.destroy(publicId, (error, result) => {
+    if (error) {
+      console.warn('Failed to remove Cloudinary file', publicId, error);
+    }
+  });
 }
 
 exports.createCar = async (req, res) => {
@@ -23,8 +20,8 @@ exports.createCar = async (req, res) => {
     if (req.user && req.user._id) data.createdBy = req.user._id;
     // files handled by multer; photos and video
     if (req.files) {
-      if (req.files.photos) data.photos = req.files.photos.map(f => `/uploads/${f.filename}`);
-      if (req.files.video && req.files.video[0]) data.video = `/uploads/${req.files.video[0].filename}`;
+      if (req.files.photos) data.photos = req.files.photos.map(f => f.path);
+      if (req.files.video && req.files.video[0]) data.video = req.files.video[0].path;
     }
     // basic validation
     if (!data.regNo) return res.status(400).json({ message: 'regNo is required' });
@@ -179,8 +176,8 @@ exports.deleteCar = async (req, res) => {
     }
 
     // remove uploaded files
-    if (Array.isArray(car.photos)) car.photos.forEach(p => removeFileIfExists(p));
-    if (car.video) removeFileIfExists(car.video);
+    if (Array.isArray(car.photos)) car.photos.forEach(p => removeCloudinaryFile(p));
+    if (car.video) removeCloudinaryFile(car.video);
 
   await Car.findByIdAndDelete(req.params.id);
     res.json({ message: 'Deleted' });
@@ -205,7 +202,7 @@ exports.deletePhoto = async (req, res) => {
     }
 
     const photoPath = car.photos[index];
-    removeFileIfExists(photoPath);
+    removeCloudinaryFile(photoPath);
     car.photos.splice(index, 1);
     await car.save();
 
@@ -227,7 +224,7 @@ exports.deleteVideo = async (req, res) => {
 
     if (!car.video) return res.status(404).json({ message: 'No video to delete' });
 
-    removeFileIfExists(car.video);
+    removeCloudinaryFile(car.video);
     car.video = null;
     await car.save();
 
