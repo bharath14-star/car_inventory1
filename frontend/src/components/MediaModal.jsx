@@ -72,14 +72,14 @@ export default function MediaModal({ isOpen, onClose, mediaUrls, initialIndex = 
             )}
             {isVideo ? (
               <video
-                src={`http://localhost:5000${currentMedia}`}
+                src={`https://car-inventory1-1.onrender.com${currentMedia}`}
                 controls
                 autoPlay
                 className="w-100"
               />
             ) : (
               <img
-                src={`http://localhost:5000${currentMedia}`}
+                src={`https://car-inventory1-1.onrender.com${currentMedia}`}
                 alt="Media"
                 className="img-fluid"
               />
