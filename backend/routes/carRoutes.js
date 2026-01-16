@@ -48,11 +48,11 @@ const upload = multer({
 });
 
 // create with files: photos (array), video (single)
-router.post('/car-entry', auth, uploadFields.fields([{ name: 'photos', maxCount: 6 }, { name: 'video', maxCount: 1 }]), carController.createCar);
+router.post('/car-entry', auth, upload.fields([{ name: 'photos', maxCount: 6 }, { name: 'video', maxCount: 1 }]), carController.createCar);
 router.get('/dashboard', auth, carController.getStats);
 router.get('/car-records', auth, carController.getAllCars);
 router.get('/car/:id', auth, carController.getCar);
-router.put('/car/:id', auth, uploadFields.fields([{ name: 'photos', maxCount: 6 }, { name: 'video', maxCount: 1 }]), carController.updateCar);
+router.put('/car/:id', auth, upload.fields([{ name: 'photos', maxCount: 6 }, { name: 'video', maxCount: 1 }]), carController.updateCar);
 router.delete('/car/:id', auth, carController.deleteCar);
 router.delete('/car/:id/photos/:index', auth, admin, carController.deletePhoto);
 router.delete('/car/:id/video', auth, admin, carController.deleteVideo);
