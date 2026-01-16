@@ -139,15 +139,15 @@ exports.updateCar = async (req, res) => {
 
     if (req.files) {
       if (req.files.photos) {
-        // append new photos to existing array, limit to 5 total
+        // append new photos to existing array, limit to 6 total
         const existingPhotos = Array.isArray(existing.photos) ? existing.photos : [];
-        const newPhotos = req.files.photos.map(f => `/uploads/${f.filename}`);
+        const newPhotos = req.files.photos.map(f => f.path);
         const combinedPhotos = [...existingPhotos, ...newPhotos];
-        data.photos = combinedPhotos.slice(0, 5); // limit to 5 photos
+        data.photos = combinedPhotos.slice(0, 6); // limit to 6 photos
       }
       if (req.files.video && req.files.video[0]) {
-        if (existing.video) removeFileIfExists(existing.video);
-        data.video = `/uploads/${req.files.video[0].filename}`;
+        if (existing.video) removeCloudinaryFile(existing.video);
+        data.video = req.files.video[0].path;
       }
     }
 

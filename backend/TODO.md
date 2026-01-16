@@ -1,2 +1,3 @@
 - [x] Fix uploadFields reference in POST /car-entry route
 - [x] Fix uploadFields reference in PUT /car/:id route
+- [x] Fix media paths in updateCar to use Cloudinary URLs instead of local paths
