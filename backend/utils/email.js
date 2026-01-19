@@ -1,13 +1,11 @@
 const nodemailer = require('nodemailer');
 
-// Create transporter for Brevo SMTP
+// Create transporter for Gmail SMTP
 const transporter = nodemailer.createTransport({
-  host: 'smtp-relay.brevo.com',
-  port: 587,
-  secure: false, // true for 465, false for other ports
+  service: 'gmail',
   auth: {
-    user: process.env.BREVO_API_KEY,
-    pass: process.env.BREVO_API_KEY
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD
   },
   tls: {
     rejectUnauthorized: false // Allow self-signed certificates
@@ -18,12 +16,13 @@ const transporter = nodemailer.createTransport({
 transporter.verify((error, success) => {
   if (error) {
     console.error('❌ Email configuration error:', error.message);
-    console.log('BREVO_API_KEY exists:', !!process.env.BREVO_API_KEY);
-    console.log('BREVO_SENDER_EMAIL:', process.env.BREVO_SENDER_EMAIL);
-    console.log('⚠️  Check your .env file and make sure you have set BREVO_API_KEY, BREVO_SENDER_EMAIL, and BREVO_SENDER_NAME');
+    console.log('GMAIL_USER exists:', !!process.env.GMAIL_USER);
+    console.log('GMAIL_APP_PASSWORD exists:', !!process.env.GMAIL_APP_PASSWORD);
+    console.log('GMAIL_SENDER_EMAIL:', process.env.GMAIL_SENDER_EMAIL);
+    console.log('⚠️  Check your .env file and make sure you have set GMAIL_USER, GMAIL_APP_PASSWORD, GMAIL_SENDER_EMAIL, and GMAIL_SENDER_NAME');
   } else {
     console.log('✅ Email server is ready to send messages');
-    console.log('📧 Configured sender:', process.env.BREVO_SENDER_EMAIL);
+    console.log('📧 Configured sender:', process.env.GMAIL_SENDER_EMAIL);
   }
 });
 
@@ -35,26 +34,29 @@ const sendEmail = async (to, subject, text, html) => {
     console.log('   Subject:', subject);
 
     const mailOptions = {
-      from: `"${process.env.BREVO_SENDER_NAME}" <${process.env.BREVO_SENDER_EMAIL}>`,
+      from: `"${process.env.GMAIL_SENDER_NAME}" <${process.env.GMAIL_SENDER_EMAIL}>`,
       to,
       subject,
       text,
       html,
       // Add envelope information for better debugging
       envelope: {
-        from: process.env.BREVO_SENDER_EMAIL,
+        from: process.env.GMAIL_SENDER_EMAIL,
         to: to
       }
     };
-
-    const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent successfully!');
-    console.log('   Message ID:', info.messageId);
-    console.log('   Response:', info.response);
-    console.log('   Envelope From:', info.envelope.from);
-    console.log('   Envelope To:', info.envelope.to);
-    console.log('   Accepted recipients:', info.accepted);
-    console.log('   Rejected recipients:', info.rejected);
+    try{
+      const info = await transporter.sendMail(mailOptions);
+      console.log('✅ Email sent successfully!');
+      console.log('   Message ID:', info.messageId);
+      console.log('   Response:', info.response);
+      console.log('   Envelope From:', info.envelope.from);
+      console.log('   Envelope To:', info.envelope.to);
+      console.log('   Accepted recipients:', info.accepted);
+      console.log('   Rejected recipients:', info.rejected);
+    } catch (err) {
+    console.error("SMTP ERROR:", err);
+    }  
 
     // Log additional debugging info
     if (info.pending) {
