@@ -2,7 +2,9 @@ const nodemailer = require('nodemailer');
 
 // Create transporter for Gmail SMTP
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, // MUST be false for 587
   auth: {
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_APP_PASSWORD
@@ -28,38 +30,29 @@ transporter.verify((error, success) => {
 
 // Function to send email
 const sendEmail = async (to, subject, text, html) => {
+  console.log('📤 Attempting to send email...');
+  console.log('   To:', to);
+  console.log('   Subject:', subject);
+
+  const mailOptions = {
+    from: `"${process.env.GMAIL_SENDER_NAME}" <${process.env.GMAIL_SENDER_EMAIL}>`,
+    to,
+    subject,
+    text,
+    html,
+    envelope: {
+      from: process.env.GMAIL_SENDER_EMAIL,
+      to: to
+    }
+  };
+
   try {
-    console.log('📤 Attempting to send email...');
-    console.log('   To:', to);
-    console.log('   Subject:', subject);
+    const info = await transporter.sendMail(mailOptions);
 
-    const mailOptions = {
-      from: `"${process.env.GMAIL_SENDER_NAME}" <${process.env.GMAIL_SENDER_EMAIL}>`,
-      to,
-      subject,
-      text,
-      html,
-      // Add envelope information for better debugging
-      envelope: {
-        from: process.env.GMAIL_SENDER_EMAIL,
-        to: to
-      }
-    };
-    try{
-      const info = await transporter.sendMail(mailOptions);
-      console.log('✅ Email sent successfully!');
-      console.log('   Message ID:', info.messageId);
-      console.log('   Response:', info.response);
-      console.log('   Envelope From:', info.envelope.from);
-      console.log('   Envelope To:', info.envelope.to);
-      console.log('   Accepted recipients:', info.accepted);
-      console.log('   Rejected recipients:', info.rejected);
-    } catch (err) {
-    console.error("SMTP ERROR:", err);
-    }  
+    console.log('✅ Email sent successfully!');
+    console.log('   Message ID:', info.messageId);
 
-    // Log additional debugging info
-    if (info.pending) {
+    if (info.pending?.length) {
       console.log('   Pending recipients:', info.pending);
     }
 
@@ -71,5 +64,6 @@ const sendEmail = async (to, subject, text, html) => {
     throw error;
   }
 };
+
 
 module.exports = { sendEmail };
