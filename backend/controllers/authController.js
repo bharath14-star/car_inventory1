@@ -46,7 +46,7 @@ exports.register = async (req, res) => {
     const name = `${firstName} ${lastName}`;
 
     // Generate OTP
-    const otp = crypto.randomInt(100000, 999999).toString();
+    const otp = Math.floor(Math.random() * 900000 + 100000).toString();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     const pendingUser = await PendingUser.create({ firstName, lastName, name, email, phone, password: hash, employeeId, otp, otpExpires });
