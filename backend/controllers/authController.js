@@ -18,7 +18,7 @@ exports.register = async (req, res) => {
 
     // Check if pending user exists
     const pendingExists = await PendingUser.findOne({ email });
-    
+
     // If pending user exists, check if OTP has expired
     if (pendingExists) {
       const now = new Date();
@@ -32,6 +32,16 @@ exports.register = async (req, res) => {
       }
     }
 
+    // Check if required environment variables are set
+    if (!process.env.SENDGRID_API_KEY) {
+      console.error('SendGrid API key not configured');
+      return res.status(500).json({ message: 'Email service not configured. Please contact administrator.' });
+    }
+    if (!process.env.FROM_EMAIL) {
+      console.error('FROM_EMAIL not configured');
+      return res.status(500).json({ message: 'Email service not configured. Please contact administrator.' });
+    }
+
     const hash = await bcrypt.hash(password, 10);
     const name = `${firstName} ${lastName}`;
 
@@ -42,23 +52,30 @@ exports.register = async (req, res) => {
     const pendingUser = await PendingUser.create({ firstName, lastName, name, email, phone, password: hash, employeeId, otp, otpExpires });
 
     // Send OTP email
-    await sendEmail(
-      email,
-      'OTP Verification - Car Portal',
-      `Your OTP for account verification is: ${otp}. This OTP will expire in 10 minutes.`,
-      `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #667eea;">OTP Verification</h2>
-          <p>You have successfully registered for the Car Portal.</p>
-          <p>Your OTP for account verification is:</p>
-          <div style="font-size: 24px; font-weight: bold; color: #667eea; text-align: center; margin: 20px 0;">${otp}</div>
-          <p>This OTP will expire in 10 minutes.</p>
-          <p>If you didn't request this, please ignore this email.</p>
-          <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
-          <p style="color: #999; font-size: 12px;">Car Portal Support Team</p>
-        </div>
-      `
-    );
+    try {
+      await sendEmail(
+        email,
+        'OTP Verification - Car Portal',
+        `Your OTP for account verification is: ${otp}. This OTP will expire in 10 minutes.`,
+        `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #667eea;">OTP Verification</h2>
+            <p>You have successfully registered for the Car Portal.</p>
+            <p>Your OTP for account verification is:</p>
+            <div style="font-size: 24px; font-weight: bold; color: #667eea; text-align: center; margin: 20px 0;">${otp}</div>
+            <p>This OTP will expire in 10 minutes.</p>
+            <p>If you didn't request this, please ignore this email.</p>
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+            <p style="color: #999; font-size: 12px;">Car Portal Support Team</p>
+          </div>
+        `
+      );
+    } catch (emailErr) {
+      console.error('Email sending failed:', emailErr);
+      // Delete the pending user since email failed
+      await PendingUser.deleteOne({ _id: pendingUser._id });
+      return res.status(500).json({ message: 'Failed to send verification email. Please try again.' });
+    }
 
     res.json({ message: 'Registration successful. Please check your email for OTP verification.', userId: pendingUser._id });
   } catch (err) {
