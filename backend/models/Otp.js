@@ -17,13 +17,12 @@ const otpSchema = new mongoose.Schema({
   },
   expiresAt: {
     type: Date,
-    required: true,
-    index: { expires: 0 } // TTL index to auto-delete expired OTPs
+    required: true
   },
   attempts: {
     type: Number,
     default: 0,
-    max: 5 // Max verification attempts
+    max: 5
   },
   isVerified: {
     type: Boolean,
@@ -33,16 +32,24 @@ const otpSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Compound index to prevent duplicate active OTPs for same email and purpose
-otpSchema.index({ email: 1, purpose: 1, isVerified: 1 }, {
-  unique: true,
-  partialFilterExpression: { isVerified: false }
-});
 
-// Pre-save middleware to clean up expired OTPs
+// ✅ TTL index (MongoDB will auto-delete expired OTPs)
+otpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+
+// ✅ Prevent multiple active OTPs for same email + purpose
+otpSchema.index(
+  { email: 1, purpose: 1, isVerified: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { isVerified: false }
+  }
+);
+
+
+// ✅ Cleanup old OTPs before saving new one
 otpSchema.pre('save', async function(next) {
   if (this.isNew) {
-    // Clean up any existing unverified OTPs for this email and purpose
     await mongoose.model('Otp').deleteMany({
       email: this.email,
       purpose: this.purpose,

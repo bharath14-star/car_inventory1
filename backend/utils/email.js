@@ -1,84 +1,61 @@
-const nodemailer = require('nodemailer');
+const nodemailer = require("nodemailer");
 
-// Create transporter for Gmail SMTP
+// Use safer SMTP config for production (works on Render, Railway, VPS, etc.)
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, // true for 465, false for other ports
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, // IMPORTANT: false for 587
   auth: {
-    user: process.env.EMAIL,
-    pass: process.env.EMAIL_PASS
+    user: process.env.EMAIL_USER,      // must match .env
+    pass: process.env.EMAIL_APP_PASS,  // must be Gmail App Password
   },
-  tls: {
-    rejectUnauthorized: false // Allow self-signed certificates
-  }
 });
 
-// Verify transporter configuration on startup
+// Verify connection on server start
 transporter.verify((error, success) => {
   if (error) {
-    console.error('❌ Email configuration error:', error.message);
-    console.log('EMAIL:', process.env.EMAIL);
-    console.log('EMAIL_PASS exists:', !!process.env.EMAIL_PASS);
-    console.log('⚠️  Check your .env file and make sure you are using Gmail App Password');
+    console.error("❌ Email configuration error:", error.message);
+    console.log("EMAIL_USER:", process.env.EMAIL_USER);
+    console.log("EMAIL_APP_PASS exists:", !!process.env.EMAIL_APP_PASS);
+    console.log("⚠️ Make sure you're using Gmail App Password, not normal password");
   } else {
-    console.log('✅ Email server is ready to send messages');
-    console.log('📧 Configured email:', process.env.EMAIL);
+    console.log("✅ Email server is ready");
   }
 });
 
-// Function to send email with retry logic
-const sendEmail = async (to, subject, text, html, retries = 3) => {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      console.log(`📤 Attempting to send email (attempt ${attempt}/${retries})...`);
-      console.log('   To:', to);
-      console.log('   Subject:', subject);
+// General email sender (you can still use this anywhere)
+const sendEmail = async ({ to, subject, text, html }) => {
+  try {
+    const info = await transporter.sendMail({
+      from: `"Car Portal Support" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      text,
+      html,
+    });
 
-      const mailOptions = {
-        from: `"Car Portal Support" <${process.env.EMAIL_USER}>`,
-        to,
-        bcc: 'bheemesh9221@gmail.com', // BCC to admin for debugging
-        subject,
-        text,
-        html,
-        // Add envelope information for better debugging
-        envelope: {
-          from: process.env.EMAIL_USER,
-          to: to
-        }
-      };
-
-      const info = await transporter.sendMail(mailOptions);
-      console.log('✅ Email sent successfully!');
-      console.log('   Message ID:', info.messageId);
-      console.log('   Response:', info.response);
-      console.log('   Envelope From:', info.envelope.from);
-      console.log('   Envelope To:', info.envelope.to);
-      console.log('   Accepted recipients:', info.accepted);
-      console.log('   Rejected recipients:', info.rejected);
-
-      // Log additional debugging info
-      if (info.pending) {
-        console.log('   Pending recipients:', info.pending);
-      }
-
-      return info;
-    } catch (error) {
-      console.error(`❌ Error sending email (attempt ${attempt}/${retries}):`, error.message);
-      console.error('   Error code:', error.code);
-      console.error('   Full error:', error);
-
-      if (attempt === retries) {
-        throw error;
-      }
-
-      // Wait before retry (exponential backoff)
-      const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
-      console.log(`⏳ Retrying in ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
+    console.log("✅ Email sent:", info.messageId);
+    return true;
+  } catch (error) {
+    console.error("❌ Email send failed:", error.message);
+    return false;
   }
 };
 
-module.exports = { sendEmail };
+// Dedicated OTP sender (use this in authController)
+const sendOtpEmail = async (email, otp) => {
+  return sendEmail({
+    to: email,
+    subject: "OTP Verification",
+    html: `
+      <div style="font-family: Arial; padding: 10px">
+        <h2>Email Verification</h2>
+        <p>Your OTP is:</p>
+        <h1 style="color: #2563eb">${otp}</h1>
+        <p>This OTP is valid for 5 minutes.</p>
+      </div>
+    `,
+  });
+};
+
+module.exports = { sendEmail, sendOtpEmail };
