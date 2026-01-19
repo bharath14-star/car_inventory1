@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
 // Set SendGrid API key
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
