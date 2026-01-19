@@ -143,11 +143,11 @@ export default function RecordDetails(){
                     {record.photos.map((photo, index) => (
                       <div key={index} className="position-relative d-inline-block me-2 mb-2">
                         <img
-                          src={`http://localhost:5000${photo}`}
+                          src={`https://car-inventory1-1.onrender.com${photo}`}
                           alt={`Photo ${index + 1}`}
                           className="img-thumbnail"
                           style={{ width: '150px', height: '150px', objectFit: 'cover', cursor: 'pointer' }}
-                          onClick={() => setSelectedMedia({ type: 'image', src: `http://localhost:5000${photo}`, alt: `Photo ${index + 1}` })}
+                          onClick={() => setSelectedMedia({ type: 'image', src: `https://car-inventory1-1.onrender.com${photo}`, alt: `Photo ${index + 1}` })}
                         />
                         {isAdmin && (
                           <button
