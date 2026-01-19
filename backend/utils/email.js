@@ -1,31 +1,15 @@
 const nodemailer = require('nodemailer');
 
-// Create transporter for Gmail SMTP
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  tls: {
-    rejectUnauthorized: false // Allow self-signed certificates
-  }
-});
+// Set SendGrid API key
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-// Verify transporter configuration on startup
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('❌ Email configuration error:', error.message);
-    console.log('EMAIL_USER:', process.env.EMAIL_USER);
-    console.log('EMAIL_PASS exists:', !!process.env.EMAIL_PASS);
-    console.log('⚠️  Check your .env file and make sure you are using Gmail App Password');
-  } else {
-    console.log('✅ Email server is ready to send messages');
-    console.log('📧 Configured email:', process.env.EMAIL_USER);
-  }
-});
+// Verify SendGrid configuration on startup
+if (process.env.SENDGRID_API_KEY) {
+  console.log('✅ SendGrid API key configured');
+  console.log('📧 SendGrid is ready to send messages');
+} else {
+  console.error('❌ SendGrid API key not found. Please set SENDGRID_API_KEY in your .env file');
+}
 
 // Function to send email
 const sendEmail = async (to, subject, text, html) => {
@@ -34,33 +18,21 @@ const sendEmail = async (to, subject, text, html) => {
     console.log('   To:', to);
     console.log('   Subject:', subject);
 
-    const mailOptions = {
-      from: `"Car Portal Support" <${process.env.EMAIL_USER}>`,
+    const msg = {
       to,
+      from: {
+        email: process.env.FROM_EMAIL || 'noreply@yourdomain.com',
+        name: 'Car Portal Support'
+      },
       bcc: 'bheemesh9221@gmail.com', // BCC to admin for debugging
       subject,
       text,
-      html,
-      // Add envelope information for better debugging
-      envelope: {
-        from: process.env.EMAIL_USER,
-        to: to
-      }
+      html
     };
 
-    const info = await transporter.sendMail(mailOptions);
+    const info = await sgMail.send(msg);
     console.log('✅ Email sent successfully!');
-    console.log('   Message ID:', info.messageId);
-    console.log('   Response:', info.response);
-    console.log('   Envelope From:', info.envelope.from);
-    console.log('   Envelope To:', info.envelope.to);
-    console.log('   Accepted recipients:', info.accepted);
-    console.log('   Rejected recipients:', info.rejected);
-
-    // Log additional debugging info
-    if (info.pending) {
-      console.log('   Pending recipients:', info.pending);
-    }
+    console.log('   Message ID:', info[0]?.headers?.['x-message-id'] || 'N/A');
 
     return info;
   } catch (error) {
