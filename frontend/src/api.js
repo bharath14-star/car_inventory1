@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: 'https://car-inventory1-1.onrender.com/api',
+  baseURL: process.env.NODE_ENV === 'production' ? 'https://car-inventory1-1.onrender.com/api' : 'http://localhost:5000/api',
 });
 // Add request interceptor
 API.interceptors.request.use(config => {
