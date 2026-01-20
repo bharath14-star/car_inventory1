@@ -141,8 +141,8 @@ export default function App(){
               <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login/>} />
               <Route path="/register" element={token ? <Navigate to="/" replace /> : <Register/>} />
               <Route path="/verify-otp" element={token ? <Navigate to="/" replace /> : <VerifyOtp/>} />
-              <Route path="/forgot-password" element={token ? <Navigate to="/" replace /> : <ForgotPassword/>} />
-              <Route path="/reset-password" element={token ? <Navigate to="/" replace /> : <ResetPassword/>} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
             </Routes>
           </div>
         </main>
