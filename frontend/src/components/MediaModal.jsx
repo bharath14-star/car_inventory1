@@ -72,14 +72,14 @@ export default function MediaModal({ isOpen, onClose, mediaUrls, initialIndex = 
             )}
             {isVideo ? (
               <video
-                src={currentMedia.startsWith('http') ? currentMedia : `https://car-inventory1-1.onrender.com${currentMedia}`}
+                src={currentMedia.startsWith('http') ? currentMedia : `https://car-inventory1-hc9s.onrender.com${currentMedia}`}
                 controls
                 autoPlay
                 className="w-100"
               />
             ) : (
               <img
-                src={currentMedia.startsWith('http') ? currentMedia : `https://car-inventory1-1.onrender.com${currentMedia}`}
+                src={currentMedia.startsWith('http') ? currentMedia : `https://car-inventory1-hc9s.onrender.com${currentMedia}`}
                 alt="Media"
                 className="img-fluid"
               />
