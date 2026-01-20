@@ -1,68 +1,32 @@
-const nodemailer = require('nodemailer');
+const sgMail = require("@sendgrid/mail");
 
-// Create transporter for Gmail SMTP
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true, // REQUIRED for 465
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-  connectionTimeout: 20_000, // 20s
-  socketTimeout: 20_000,
-});
+// Set SendGrid API key
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-// Verify transporter configuration on startup
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('❌ Email configuration error:', error.message);
-    console.log('GMAIL_USER exists:', !!process.env.GMAIL_USER);
-    console.log('GMAIL_APP_PASSWORD exists:', !!process.env.GMAIL_APP_PASSWORD);
-    console.log('GMAIL_SENDER_EMAIL:', process.env.GMAIL_SENDER_EMAIL);
-    console.log('⚠️  Check your .env file and make sure you have set GMAIL_USER, GMAIL_APP_PASSWORD, GMAIL_SENDER_EMAIL, and GMAIL_SENDER_NAME');
-  } else {
-    console.log('✅ Email server is ready to send messages');
-    console.log('📧 Configured sender:', process.env.GMAIL_SENDER_EMAIL);
-  }
-});
-
-// Function to send email
+// Function to send email (OTP)
 const sendEmail = async (to, subject, text, html) => {
-  console.log('📤 Attempting to send email...');
-  console.log('   To:', to);
-  console.log('   Subject:', subject);
+  console.log("📤 Attempting to send email via SendGrid...");
+  console.log("   To:", to);
+  console.log("   Subject:", subject);
 
-  const mailOptions = {
-    from: `"${process.env.GMAIL_SENDER_NAME}" <${process.env.GMAIL_SENDER_EMAIL}>`,
+  const msg = {
     to,
+    from: {
+      email: process.env.SENDGRID_SENDER_EMAIL,
+      name: process.env.SENDGRID_SENDER_NAME,
+    },
     subject,
     text,
     html,
-    envelope: {
-      from: process.env.GMAIL_SENDER_EMAIL,
-      to: to
-    }
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-
-    console.log('✅ Email sent successfully!');
-    console.log('   Message ID:', info.messageId);
-
-    if (info.pending?.length) {
-      console.log('   Pending recipients:', info.pending);
-    }
-
-    return info;
+    await sgMail.send(msg);
+    console.log("✅ Email sent successfully via SendGrid");
   } catch (error) {
-    console.error('❌ Error sending email:', error.message);
-    console.error('   Error code:', error.code);
-    console.error('   Full error:', error);
+    console.error("❌ SendGrid error:", error.response?.body || error);
     throw error;
   }
 };
-
 
 module.exports = { sendEmail };
