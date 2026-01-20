@@ -83,22 +83,7 @@ export default function ResetPassword() {
     );
   }
 
-  if (!token || !isValidToken) {
-    return (
-      <div className="container mt-5" style={{ backgroundImage: `url('c:\Users\DELL\Pictures\download (1).jpg')` }}>
-        <div className="row justify-content-center">
-          <div className="col-md-6">
-            <div className="card shadow">
-              <div className="card-body">
-                <h2 className="card-title text-center mb-4">Reset Password</h2>
-                <div className="alert alert-danger">{message}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="container mt-5" style={{ backgroundImage: `url('data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAkGBxATEhUSEhIVFhUVFRUVFhUXFxcYFhcVFhUXFxUVFRUZHSggGB0lHRUVITEhJSkrLi4uFx8zODMtNygtLisBCgoKDg0OFxAQGi8dHR8tLS0tLS0rLS0tKy0tKy0tLS0tLSstLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLf/AABEIAI8BYQMBIgACEQEDEQH/xAAcAAABBQEBAQAAAAAAAAAAAAADAAIEBQYBBwj/xABMEAACAAQDAwcHCQYCCQUAAAABAgADERIEITEFQVEGE2FxgZGhFCIyUrHB0RVCU3KSotLh8CMzQ2KCwpOyBxZEY3ODlOLxJDSEo8P/xAAZAQEBAQEBAQAAAAAAAAAAAAAAAQIDBAX/xAAhEQEBAQACAQUBAQEAAAAAAAAAARECEiEDBDFRYUFxIv/aAAwDAQACEQMRAD8A...')` }}>
@@ -112,34 +97,38 @@ export default function ResetPassword() {
                   {message}
                 </div>
               )}
-              <form onSubmit={handleSubmit(onSubmit)}>
-                <div className="mb-3">
-                  <label className="form-label">New Password</label>
-                  <input
-                    type="password"
-                    className={`form-control ${errors.newPassword ? 'is-invalid' : ''}`}
-                    {...register('newPassword', { required: 'New password is required', minLength: { value: 6, message: 'Password must be at least 6 characters' } })}
-                    disabled={loading}
-                  />
-                  {errors.newPassword && <div className="invalid-feedback">{errors.newPassword.message}</div>}
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Confirm New Password</label>
-                  <input
-                    type="password"
-                    className={`form-control ${errors.confirmPassword ? 'is-invalid' : ''}`}
-                    {...register('confirmPassword', {
-                      required: 'Please confirm your password',
-                      validate: value => value === watch('newPassword') || 'Passwords do not match'
-                    })}
-                    disabled={loading}
-                  />
-                  {errors.confirmPassword && <div className="invalid-feedback">{errors.confirmPassword.message}</div>}
-                </div>
-                <button type="submit" className="btn btn-primary w-100" disabled={loading}>
-                  {loading ? 'Resetting...' : 'Reset Password'}
-                </button>
-              </form>
+              {!token || !isValidToken ? (
+                <div className="alert alert-danger">{message}</div>
+              ) : (
+                <form onSubmit={handleSubmit(onSubmit)}>
+                  <div className="mb-3">
+                    <label className="form-label">New Password</label>
+                    <input
+                      type="password"
+                      className={`form-control ${errors.newPassword ? 'is-invalid' : ''}`}
+                      {...register('newPassword', { required: 'New password is required', minLength: { value: 6, message: 'Password must be at least 6 characters' } })}
+                      disabled={loading}
+                    />
+                    {errors.newPassword && <div className="invalid-feedback">{errors.newPassword.message}</div>}
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Confirm New Password</label>
+                    <input
+                      type="password"
+                      className={`form-control ${errors.confirmPassword ? 'is-invalid' : ''}`}
+                      {...register('confirmPassword', {
+                        required: 'Please confirm your password',
+                        validate: value => value === watch('newPassword') || 'Passwords do not match'
+                      })}
+                      disabled={loading}
+                    />
+                    {errors.confirmPassword && <div className="invalid-feedback">{errors.confirmPassword.message}</div>}
+                  </div>
+                  <button type="submit" className="btn btn-primary w-100" disabled={loading}>
+                    {loading ? 'Resetting...' : 'Reset Password'}
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>
