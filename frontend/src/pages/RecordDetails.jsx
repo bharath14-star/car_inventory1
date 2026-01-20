@@ -172,9 +172,9 @@ export default function RecordDetails(){
                       controls
                       className="me-2"
                       style={{ width: '150px', height: '150px', objectFit: 'cover', cursor: 'pointer' }}
-                      onClick={() => setSelectedMedia({ type: 'video', src: record.video.startsWith('http') ? record.video : `https://car-inventory1-hc9s.onrender.com${record.video}` })}
+                      onClick={() => setSelectedMedia({ type: 'video', src: record.video.startsWith('http') ? record.video : `https://car-inventory1-1.onrender.com${record.video}` })}
                     >
-                      <source src={record.video.startsWith('http') ? record.video : `https://car-inventory1-hc9s.onrender.com${record.video}`} type="video/mp4" />
+                      <source src={record.video.startsWith('http') ? record.video : `https://car-inventory1-1.onrender.com${record.video}`} type="video/mp4" />
                       Your browser does not support the video tag.
                     </video>
                     {isAdmin && (

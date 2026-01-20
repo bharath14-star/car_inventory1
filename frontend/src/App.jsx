@@ -37,7 +37,7 @@ export default function App(){
       const storedToken = localStorage.getItem('token');
       if (storedToken) {
         try {
-          const res = await fetch('https://car-inventory1-hc9s.onrender.com/api/auth/verify', {
+          const res = await fetch('https://car-inventory1-1.onrender.com/api/auth/verify', {
             headers: { Authorization: `Bearer ${storedToken}` }
           });
           if (res.ok) {
