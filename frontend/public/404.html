@@ -5,12 +5,14 @@
     <title>Redirecting...</title>
     <script>
       const repo = "/car_inventory1";
-      const path = location.pathname.replace(repo, "");
-      const query = location.search;
+      const fullPath = location.pathname + location.search;
 
-      location.replace(
-        repo + "/?redirect=" + encodeURIComponent(path + query)
-      );
+      // Remove repo name if already present
+      const cleanPath = fullPath.startsWith(repo)
+        ? fullPath.slice(repo.length)
+        : fullPath;
+
+      location.replace(repo + cleanPath);
     </script>
   </head>
   <body></body>

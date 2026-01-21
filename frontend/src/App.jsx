@@ -16,7 +16,6 @@ import VerifyOtp from './pages/VerifyOtp'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import ProtectedRoute from './components/ProtectedRoute'
-import RedirectHandler from "./RedirectHandler";
 
 import Welcome from './pages/Welcome';
 
@@ -102,7 +101,6 @@ export default function App(){
         <main className="flex-grow-1 main-content">
           <div className="container-fluid py-4">
             <Routes>
-              <Route path="*" element={<RedirectHandler />} />
               <Route path="/" element={token ? <Dashboard /> : <Navigate to="/welcome" />} />
               <Route path="/welcome" element={<Welcome />} />
               <Route path="/admin" element={
