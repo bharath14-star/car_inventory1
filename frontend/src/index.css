@@ -13,7 +13,10 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-family: 'Mona Sans', sans-serif;
+}
+
+body {
+  font-family: 'Mona Sans', sans-serif !important;
 }
 
 body {
