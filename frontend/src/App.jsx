@@ -16,6 +16,7 @@ import VerifyOtp from './pages/VerifyOtp'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import ProtectedRoute from './components/ProtectedRoute'
+import RedirectHandler from "./RedirectHandler";
 
 import Welcome from './pages/Welcome';
 
@@ -101,6 +102,7 @@ export default function App(){
         <main className="flex-grow-1 main-content">
           <div className="container-fluid py-4">
             <Routes>
+              <Route path="*" element={<RedirectHandler />} />
               <Route path="/" element={token ? <Dashboard /> : <Navigate to="/welcome" />} />
               <Route path="/welcome" element={<Welcome />} />
               <Route path="/admin" element={
@@ -141,8 +143,8 @@ export default function App(){
               <Route path="/login" element={token ? <Navigate to="/" replace /> : <Login/>} />
               <Route path="/register" element={token ? <Navigate to="/" replace /> : <Register/>} />
               <Route path="/verify-otp" element={token ? <Navigate to="/" replace /> : <VerifyOtp/>} />
-              <Route path="/forgot-password" element={token ? <Navigate to="/" replace /> : <ForgotPassword/>} />
-              <Route path="/reset-password" element={token ? <Navigate to="/" replace /> : <ResetPassword/>} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
             </Routes>
           </div>
         </main>
