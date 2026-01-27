@@ -112,8 +112,8 @@ export default function RecordDetails(){
                     <td>{record.model}</td>
                   </tr>
                   <tr>
-                    <td><strong>Color:</strong></td>
-                    <td>{record.color}</td>
+                    <td><strong>Colour:</strong></td>
+                    <td>{record.colour}</td>
                   </tr>
                   <tr>
                     <td><strong>In/Out Status:</strong></td>
